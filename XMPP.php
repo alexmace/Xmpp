@@ -1,0 +1,533 @@
+<?php
+/**
+ * XMPP
+ *
+ * XMPP is a implementation of the XMPP protocol.
+ *
+ * PHP Version 5
+ *
+ * @package   XMPP
+ * @author    Alex Mace <alex@hollytree.co.uk>
+ * @copyright 2010 Alex Mace
+ * @license   The PHP License http://www.php.net/license/
+ */
+require_once 'XMPP/Exception.php';
+require_once 'Stream.php';
+require_once 'Zend/Log.php';
+require_once 'Zend/Log/Writer/Stream.php';
+
+/**
+ * XMPP is an implementation of the XMPP protocol. Note that creating the class
+ * does not connect to the server specified in the constructor. You need to call
+ * connect() to actually perform the connection.
+ *
+ * @package XMPP
+ * @author  Alex Mace <alex@hollytree.co.uk>
+ * @todo Store what features are available when session is established
+ * @todo Handle error conditions of authenticate, bind, connect and
+ *		 establishSession
+ * @todo Throw exceptions when attempting to perform actions that the server has
+ *		 not reported that they support.
+ * @todo ->wait() method should return a class that encapsulates what has come
+ *		 from the server. e.g. XMPP_Message XMPP_Iq XMPP_Presence
+ */
+class XMPP 
+{
+
+	const PRESENCE_AWAY = 'away';
+	const PRESENCE_CHAT = 'chat';
+	const PRESENCE_DND = 'dnd';
+	const PRESENCE_XA = 'xa';
+
+	/**
+	 * Host name of the server to connect to
+	 *
+	 * @var string
+	 */
+	private $_host = null;
+
+	private $_lastResponse = null;
+
+	/**
+	 * Class that performs logging
+	 *
+	 * @var Zend_Log
+	 */
+	private $_logger = null;
+
+	private $_mechanisms = array();
+
+	/**
+	 * Holds the password of the user we are going to connect with
+	 *
+	 * @var string
+	 */
+	private $_password = null;
+
+	/**
+	 * Holds the port of the server to connect to
+	 *
+	 * @var int
+	 */
+	private $_port = null;
+
+	/**
+	 * Holds the "realm" of the user name. Usually refers to the domain in the
+	 * user name.
+	 *
+	 * @var string
+	 */
+	private $_realm = '';
+
+	/**
+	 * Holds the resource for the connection. Will be something like a machine
+	 * name or a location to identify the connection.
+	 *
+	 * @var string
+	 */
+	private $_resource = '';
+
+	/**
+	 * Holds the Stream object that performs the actual connection to the server
+	 *
+	 * @var Stream
+	 */
+	private $_stream = null;
+
+	/**
+	 * Holds the username used for authentication with the server
+	 *
+	 * @var string
+	 */
+	private $_userName = null;
+
+	/**
+	 * Class constructor
+	 *
+	 * @param string $userName Username to authenticate with
+	 * @param string $password Password to authenticate with
+	 * @param string $host     Host name of the server to connect to
+	 * @param int    $logLevel Level of logging to be performed
+	 * @param int    $port     Port to use for the connection
+	 * @param string $resource Identifier of the connection
+	 */
+	public function __construct(
+		$userName, $password, $host, $logLevel = Zend_Log::EMERG, $port = 5222,
+		$resource = 'NewXMPP'
+	) {
+
+		// First set up logging
+		$this->_host = $host;
+		$this->_logger = $this->_getLogger($logLevel);
+		$this->_password = $password;
+		$this->_port = $port;
+		$this->_resource = $resource;
+		list($this->_userName, $this->_realm) = explode('@', $userName);
+
+	}
+
+	public function authenticate()
+	{
+		// Check that the server said that DIGEST-MD5 was available
+		if ($this->_mechanismAvailable('DIGEST-MD5')) {
+
+			// Send message to the server that we want to authenticate
+			$message = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' "
+					 . "mechanism='DIGEST-MD5'/>";
+			$this->_logger->debug('Requesting Authentication: ' . $message);
+			$this->_stream->send($message);
+
+			// Wait for challenge to come back from the server
+			$response = $this->_waitForServer('challenge');
+			$this->_logger->debug('Response: ' . $response->asXML());
+
+			// Decode the response
+			$decodedResponse = base64_decode((string)$response);
+			$this->_logger->debug(
+				'Response (Decoded): ' . $decodedResponse);
+			
+			// Split up the parts of the challenge
+			$challengeParts = explode(',', $decodedResponse);
+			
+			// Create an array to hold the challenge
+			$challenge = array();
+
+			// Process the parts and put them into the array for easy access
+			foreach($challengeParts as $part) {
+				list($key,$value) = explode('=', $part);
+				$challenge[$key] = trim($value, '"');
+			}
+
+			$cnonce = uniqid();
+			$a1 = pack('H32', md5($this->_userName . ':' . $challenge['realm']
+				. ':' . $this->_password)) . ':' . $challenge['nonce'] . ':'
+				. $cnonce;
+			$a2 = 'AUTHENTICATE:xmpp/' . $challenge['realm'];
+			$ha1 = md5($a1);
+			$ha2 = md5($a2);
+			$kd = $ha1 . ':' . $challenge['nonce'] . ':00000001:'
+				. $cnonce . ':' . $challenge['qop'] . ':' . $ha2;
+			$z = md5($kd);
+
+			// Start constructing message to send with authentication details in
+			// it.
+			$message = 'username="' . $this->_userName . '",'
+					 . 'realm="' . $challenge['realm'] . '",'
+					 . 'nonce="' . $challenge['nonce'] . '",'
+					 . 'cnonce="' . $cnonce . '",nc="00000001",'
+					 . 'qop="' . $challenge['qop'] . '",'
+					 . 'digest-uri="xmpp/' . $challenge['realm'] . '",'
+					 . 'response="' . $z . '",'
+					 . 'charset="' . $challenge['charset'] .'"';
+			$this->_logger->debug('Unencoded Response: ' . $message);
+			$message = "<response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'>"
+					 . base64_encode($message) . '</response>';
+
+			// Send the response
+			$this->_logger->debug('Challenge Response: ' . $message);
+			$this->_stream->send($message);
+
+			// Should get another challenge back from the server. Openfire seems
+			// not to bother with this and just send a success tag back with the
+			// rspauth encoded in it.
+			$response = $this->_waitForServer('success');
+			$this->_logger->debug('Response: ' . $response->asXML());
+
+			// Now that we have been authenticated, a new stream needs to be
+			// started.
+			$this->_startStream();
+
+			// Server should now respond with start of stream and list of
+			// features
+			$response = $this->_waitForServer('stream:stream', false);
+			$this->_logger->debug('Received: ' . $response);
+
+		}
+	}
+
+	public function bind()
+	{
+		// Need to bind the resource with the server
+		$message = "<iq type='set' id='bind_2'>"
+				 . "<bind xmlns='urn:ietf:params:xml:ns:xmpp-bind'>"
+				 . '<resource>' . $this->_resource . '</resource>'
+				 . '</bind></iq>';
+		$this->_logger->debug('Bind request: ' . $message);
+		$this->_stream->send($message);
+
+		// Should get an iq response from the server confirming the jid
+		$response = $this->_waitForServer('iq');
+		$this->_logger->debug('Response: ' . $response->asXML());
+	}
+
+	/**
+	 * Connects to the server and upgrades to TLS connection if possible
+	 *
+	 * @return void
+	 */
+	public function connect()
+	{
+		// Figure out where we need to connect to
+		$server = 'tcp://' . $this->_host . ':' . $this->_port;
+
+		try {
+
+			// Get a connection to server
+			$this->_stream = $this->_getStream($server);
+			$this->_logger->debug('Connection made');
+
+			// Set the stream to blocking mode
+			$this->_stream->setBlocking(true);
+			$this->_logger->debug('Blocking enabled');
+
+			// Attempt to send the stream start
+			$this->_startStream();
+
+			$this->_logger->debug('Wait for response from server');
+
+			// Now we will expect to get a stream tag back from the server. Not
+			// sure if we're supposed to do anything with it, so we'll just drop
+			// it for now.
+			$response = $this->_waitForServer('stream:stream', false);
+			$this->_logger->debug('Received: ' . $response);
+
+			// Server should now send back a features tag telling us what
+			// features it supports. If it tells us to start tls then we will
+			// need to change to a secure connection. It will also tell us what
+			// authentication methods it supports.
+			$response = $this->_waitForServer('stream:features', false);
+			$this->_logger->debug('Received: ' . $response);
+
+			// Set mechanisms based on that tag
+			$this->_setMechanisms($response);
+
+			// If there was a starttls tag in there, then we should tell the
+			// server that we will start up tls as well.
+			if (strpos($response, '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"></starttls>') !== false) {
+				$this->_logger->debug('Informing server we will start TLS');
+				$message = "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>";
+				$this->_stream->send($message);
+
+				// Wait to get the proceed message back from the server
+				$response = $this->_waitForServer('proceed', true);
+				$this->_logger->debug('Received: ' . $response->asXML());
+
+				// Once we have the proceed signal from the server, we should
+				// turn on TLS on the stream and send the opening stream tag
+				// again.
+				$this->_stream->setTLS(true);
+				$this->_logger->debug('Enabled TLS');
+
+				// Now we need to start a new stream again.
+				$this->_startStream();
+
+				// Server should now respond with start of stream and list of
+				// features
+				$response = $this->_waitForServer('stream:stream', false);
+				$this->_logger->debug('Received: ' . $response);
+
+				// Set mechanisms based on that tag
+				$this->_setMechanisms($response);
+
+			}
+
+		} catch(Stream_Exception $e) {
+			// A Stream Exception occured. Catch it and rethrow it as an XMPP
+			// Exception.
+			throw new XMPP_Exception('Failed to connect: ' . $e->getMessage());
+		}
+	}
+
+	public function establishSession()
+	{
+
+		// Send message requesting start of session.
+		$message = "<iq to='" . $this->_realm . "' type='set' id='sess_1'>"
+				 . "<session xmlns='urn:ietf:params:xml:ns:xmpp-session'/>"
+				 . "</iq>";
+		$this->_stream->send($message);
+
+		// Should now get an iq in response from the server to say the session
+		// was established.
+		$response = $this->_waitForServer('iq');
+		$this->_logger->debug('Received: ' . $response->asXML());
+
+
+
+	}
+
+	public function getMessage()
+	{
+		if ((string)$this->_lastResponse->getName() != 'message') {
+			throw new XMPP_Exception('Last stanza received was not a message');
+		}
+
+		return new Xmpp_Message($this->_lastResponse);
+	}
+
+	/**
+	 *
+	 * @todo Allow multiple statuses to be entered
+	 * @param <type> $status
+	 * @param <type> $show
+	 * @param <type> $priority
+	 */
+	public function presence($status = null, $show = null, $priority = null)
+	{
+		if (is_null($status) && is_null($show) && is_null($priority)) {
+			$message = '<presence/>';
+		} else {
+			$message = "<presence xml:lang='en'>";
+
+			if (!is_null($status)) {
+				$message .= '<status>' . $status . '</status>';
+			}
+
+			if (!is_null($show) && ($show == self::PRESENCE_AWAY
+				|| $show == self::PRESENCE_CHAT || $show == self::PRESENCE_DND
+				|| $show == self::PRESENCE_XA)) {
+				$message .= '<show>' . $show . '</show>';
+			}
+
+			if (!is_null($priority) && is_int($priority)) {
+				$message .= '<priority>' . $priority . '</priority>';
+			}
+
+			$message .= '</presence>';
+		}
+		$this->_stream->send($message);
+	}
+
+	/**
+	 *
+	 * @todo Get this to return after a timeout period if nothing has come back
+	 * @return <type>
+	 */
+	public function wait() {
+
+		// Wait for any tag to be sent by the server
+		$response = $this->_waitForServer('*');
+
+		// Store the last response
+		$this->_lastResponse = $response;
+
+		// Return what type of tag has come back
+		return $this->_lastResponse->getName();
+
+	}
+
+	public function message($to, $text)
+	{
+		$message = "<message to='" . $to . "' from='" . $this->_userName . '/' 
+				 . $this->_resource . "' xml:lang='en'><body>" . $text
+				 . "</body></message>";
+		$this->_stream->send($message);
+	}
+
+	/**
+	 * Class destructor. WIll try and close the connection if it is open
+	 */
+	public function __destruct()
+	{
+		if (!is_null($this->_stream) && $this->_stream->isConnected()) {
+			$this->_stream->send('</stream:stream>');
+			$this->_logger->debug('Stream closed');
+		}
+	}
+
+	/**
+	 * Gets a Stream object that encapsulates the actual connection to the 
+	 * server
+	 *
+	 * @param string   $remoteSocket Address to connect to
+	 * @param int      $timeOut      Length of time to wait for connection
+	 * @param int      $flags        Flags to be set on the connection
+	 * @param resource $context      Context of the connection
+	 * 
+	 * @return Stream
+	 */
+	protected function _getStream(
+		$remoteSocket, $timeOut = null, $flags = null, $context = null
+	) {
+		return new Stream($remoteSocket, $timeOut, $flags, $context);
+	}
+
+	/**
+	 * Gets the logging class
+	 *
+	 * @param int $logLevel Logging level to be used
+	 * 
+	 * @return Zend_Log
+	 */
+	protected function _getLogger($logLevel)
+	{
+		$writer = new Zend_Log_Writer_Stream('php://output');
+		return new Zend_Log($writer);
+	}
+
+	protected function _mechanismAvailable($mechanism)
+	{
+		return in_array($mechanism, $this->_mechanisms);
+	}
+
+	protected function _setMechanisms($features)
+	{
+
+		// Set up an array to hold any matches
+		$matches = array();
+
+		// A response containing a stream:features tag should have been passed
+		// in. That should contain a mechanisms tag. Find the mechanisms tag and
+		// load it into a SimpleXMLElement object.
+		if (preg_match('/<stream:features>.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features, $matches) != 0) {
+
+			// Clear out any existing mechanisms
+			$this->_mechanisms = array();
+
+			// Create SimpleXMLElement
+			$xml = simplexml_load_string($matches[1]);
+
+			foreach($xml->children() as $child) {
+				$this->_mechanisms[] = (string)$child;
+			}
+
+		}
+	}
+
+	protected function _startStream()
+	{
+		$message = '<stream:stream to="' . $this->_host . '" '
+					 . 'xmlns:stream="http://etherx.jabber.org/streams" '
+					 . 'xmlns="jabber:client" version="1.0">';
+		$this->_stream->send($message);
+		$this->_logger->debug('Stream started');
+	}
+
+	/**
+	 * Waits for the server to send the specified tag back.
+	 *
+	 * @param string  $tag               Tag to wait for from the server
+	 * @param boolean $returnAsSimpleXml Will return the response as a
+	 *									 SimpleXMLElement
+	 * 
+	 * @return boolean|string|SimpleXMLElement
+	 */
+	protected function _waitForServer($tag, $returnAsSimpleXml = true)
+	{
+
+		$fromServer = false;
+
+		do {
+			// Wait for the stream to update
+			if ($this->_stream->select() > 0) {
+
+				// If something has come back, see if is the tag we have been
+				// waiting for.
+				$response = $this->_stream->read(4096);
+
+				// If the response isn't empty, load it into a SimpleXML element
+				if (trim($response) != '') {
+
+					// If the response from the server starts (where "starts
+					// with" means "appears after the xml prologue if one is
+					// present") with "<stream:stream and it doesn't have a
+					// closing "</stream:stream>" then we should append one so
+					// that it can be easily loaded into a SimpleXMLElement,
+					// otherwise it will cause an error to be thrown because of
+					// malformed XML.
+
+					// Check if response starts with XML Prologue:
+					if (strpos($response, "<?xml version='1.0' encoding='UTF-8'?>") === 0) {
+						$offset = 38;
+					} else {
+						$offset = 0;
+					}
+
+					// Check if first part of the actual response starts with
+					// <stream:stream
+					if (strpos($response, '<stream:stream ') === $offset) {
+						// If so, append a closing tag
+						$response .= '</stream:stream>';
+					}
+
+					if ($returnAsSimpleXml) {
+						$xml = simplexml_load_string($response);
+						if ($tag == '*' || $xml->getName() == $tag) {
+							$fromServer = $xml;
+						}
+					} else {
+						if ($tag == '*' || strpos($response, $tag)) {
+							$fromServer = $response;
+						}
+					}
+				}
+
+			}
+
+		} while ($fromServer === false);
+
+		return $fromServer;
+		
+	}
+
+}
