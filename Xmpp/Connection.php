@@ -1,27 +1,27 @@
 <?php
 /**
- * XMPP
+ * Xmpp
  *
- * XMPP is a implementation of the XMPP protocol.
+ * Xmpp is a implementation of the Xmpp protocol.
  *
  * PHP Version 5
  *
- * @package   XMPP
+ * @package   Xmpp
  * @author    Alex Mace <alex@hollytree.co.uk>
  * @copyright 2010 Alex Mace
  * @license   The PHP License http://www.php.net/license/
  */
-require_once 'XMPP/Exception.php';
+require_once 'Xmpp/Exception.php';
 require_once 'Stream.php';
 require_once 'Zend/Log.php';
 require_once 'Zend/Log/Writer/Stream.php';
 
 /**
- * XMPP is an implementation of the XMPP protocol. Note that creating the class
+ * Xmpp is an implementation of the Xmpp protocol. Note that creating the class
  * does not connect to the server specified in the constructor. You need to call
  * connect() to actually perform the connection.
  *
- * @package XMPP
+ * @package Xmpp
  * @author  Alex Mace <alex@hollytree.co.uk>
  * @todo Store what features are available when session is established
  * @todo Handle error conditions of authenticate, bind, connect and
@@ -29,9 +29,9 @@ require_once 'Zend/Log/Writer/Stream.php';
  * @todo Throw exceptions when attempting to perform actions that the server has
  *		 not reported that they support.
  * @todo ->wait() method should return a class that encapsulates what has come
- *		 from the server. e.g. XMPP_Message XMPP_Iq XMPP_Presence
+ *		 from the server. e.g. Xmpp_Message Xmpp_Iq Xmpp_Presence
  */
-class XMPP 
+class Xmpp_Connection
 {
 
 	const PRESENCE_AWAY = 'away';
@@ -107,13 +107,15 @@ class XMPP
 	 * @param string $userName Username to authenticate with
 	 * @param string $password Password to authenticate with
 	 * @param string $host     Host name of the server to connect to
+	 * @param string $ssl      Whether or not to connect over SSL if it is
+	 *                         available.
 	 * @param int    $logLevel Level of logging to be performed
 	 * @param int    $port     Port to use for the connection
 	 * @param string $resource Identifier of the connection
 	 */
 	public function __construct(
-		$userName, $password, $host, $logLevel = Zend_Log::EMERG, $port = 5222,
-		$resource = 'NewXMPP'
+		$userName, $password, $host, $ssl = true, $logLevel = Zend_Log::EMERG,
+		$port = 5222, $resource = 'NewXmpp'
 	) {
 
 		// First set up logging
@@ -122,7 +124,7 @@ class XMPP
 		$this->_password = $password;
 		$this->_port = $port;
 		$this->_resource = $resource;
-		list($this->_userName, $this->_realm) = explode('@', $userName);
+		list($this->_userName, $this->_realm) = array_pad(explode('@', $userName), 2, null);
 
 	}
 
@@ -292,9 +294,9 @@ class XMPP
 			}
 
 		} catch(Stream_Exception $e) {
-			// A Stream Exception occured. Catch it and rethrow it as an XMPP
+			// A Stream Exception occured. Catch it and rethrow it as an Xmpp
 			// Exception.
-			throw new XMPP_Exception('Failed to connect: ' . $e->getMessage());
+			throw new Xmpp_Exception('Failed to connect: ' . $e->getMessage());
 		}
 	}
 
@@ -319,7 +321,7 @@ class XMPP
 	public function getMessage()
 	{
 		if ((string)$this->_lastResponse->getName() != 'message') {
-			throw new XMPP_Exception('Last stanza received was not a message');
+			throw new Xmpp_Exception('Last stanza received was not a message');
 		}
 
 		return new Xmpp_Message($this->_lastResponse);
