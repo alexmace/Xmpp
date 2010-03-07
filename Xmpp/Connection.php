@@ -373,7 +373,7 @@ class Xmpp_Connection
 	/**
 	 *
 	 * @todo Get this to return after a timeout period if nothing has come back
-	 * @return <type>
+	 * @return string
 	 */
 	public function wait() {
 
