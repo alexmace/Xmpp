@@ -1,12 +1,12 @@
 <?php
 /**
- * XMPP Exception
+ * Xmpp Exception
  *
- * Exception for the XMPP class
+ * Exception for the Xmpp class
  *
  * PHP Version 5
  *
- * @package   XMPP
+ * @package   Xmpp
  * @author    Alex Mace <alex@hollytree.co.uk>
  * @copyright 2010 Alex Mace
  * @license   The PHP License http://www.php.net/license/
@@ -14,11 +14,11 @@
 
 /**
  * The Exception does not current do anything special, it is just used to
- * separate errors in the XMPP class from others.
+ * separate errors in the Xmpp class from others.
  *
- * @package XMPP
+ * @package Xmpp
  * @author  Alex Mace <alex@hollytree.co.uk>
  */
-class XMPP_Exception extends Exception
+class Xmpp_Exception extends Exception
 {
 }
