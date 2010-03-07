@@ -88,6 +88,13 @@ class Xmpp_Connection
 	private $_resource = '';
 
 	/**
+	 * Whether or not this connection to switch SSL when it is available.
+	 * 
+	 * @var boolean
+	 */
+	private $_ssl = true;
+
+	/**
 	 * Holds the Stream object that performs the actual connection to the server
 	 *
 	 * @var Stream
@@ -124,6 +131,7 @@ class Xmpp_Connection
 		$this->_password = $password;
 		$this->_port = $port;
 		$this->_resource = $resource;
+		$this->_ssl = $ssl;
 		list($this->_userName, $this->_realm) = array_pad(explode('@', $userName), 2, null);
 
 	}
@@ -263,9 +271,11 @@ class Xmpp_Connection
 			// Set mechanisms based on that tag
 			$this->_setMechanisms($response);
 
-			// If there was a starttls tag in there, then we should tell the
-			// server that we will start up tls as well.
-			if (strpos($response, '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"></starttls>') !== false) {
+			// If there was a starttls tag in there, and this connection has SSL
+			// enabled, then we should tell the server that we will start up tls
+			// as well.
+			if (strpos($response, '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"></starttls>') !== false
+				&& $this->_ssl === true) {
 				$this->_logger->debug('Informing server we will start TLS');
 				$message = "<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>";
 				$this->_stream->send($message);

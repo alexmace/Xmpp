@@ -71,6 +71,9 @@ class Stream
 		if ($this->_conn === false) {
 			throw new Stream_Exception($this->_errorString, $this->_errorNumber);
 		}
+		
+		// Set the time out of the stream.
+		stream_set_timeout($this->_conn, 1);
 
 		$this->_connected = true;
 
