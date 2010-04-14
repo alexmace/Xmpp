@@ -46,6 +46,13 @@ class Xmpp_Connection
 	 */
 	private $_host = null;
 
+	/**
+	 * List of items available on the server
+	 *
+	 * @var array
+	 */
+	protected $_items = null;
+
 	private $_lastResponse = null;
 
 	/**
@@ -383,16 +390,106 @@ class Xmpp_Connection
 		// Store the last response
 		$this->_lastResponse = $response;
 
+		if ($response !== false) {
+			$tag = $this->_lastResponse->getName();
+		} else {
+			$tag = null;
+		}
+
 		// Return what type of tag has come back
-		return $this->_lastResponse->getName();
+		return $tag;
+
+	}
+
+	public function isMucSupported()
+	{
+
+		// Set up return value. Assume MUC isn't supported
+		$mucSupported = false;
+
+		// If items is empty then we haven't yet asked the server what items
+		// are associated with it. Query the server for what items are
+		// available.
+		if (is_null($this->_items)) {
+			$this->_discoverItems();
+		}
+
+		// Iterate over the items and the main server to ask if MUC is supported
+		$items = $this->_items;
+		$items[] = array('jid' => $this->_realm);
+
+		foreach ($items as $item) {
+
+			// Send iq stanza asking if this server supports MUC.
+			$message = "<iq from='" . $this->_userName . '@' . $this->_realm . '/'
+					 . $this->_resource . "' id='disco1' "
+					 . "to='" . $item['jid'] . "' type='get'>"
+					 . "<query xmlns='http://jabber.org/protocol/disco#info'/>"
+					 . "</iq>";
+			$this->_stream->send($message);
+			$this->_logger->debug('Querying for MUC support');
+
+			// Wait for iq response
+			$response = false;
+			while(!$response) {
+				$response = $this->_waitForServer('iq');
+			}
+			$this->_logger->debug('Received: ' . $response->asXML());
+
+			// Check if feature tag with appropriate var value is in response.
+			// If it is, then MUC is supported
+			if (isset($response->query)) {
+				foreach ($response->query->children() as $feature) {
+					if ($feature->getName() == 'feature'
+						&& isset($feature->attributes()->var)
+						&& $feature->attributes()->var == 'http://jabber.org/protocol/muc') {
+						$mucSupported = true;
+					}
+				}
+			}
+
+		}
+
+		return $mucSupported;
+
+	}
+
+	public function join($roomJid, $nick, $overRideReservedNick = false) {
+
+		// If we shouldn't over ride the reserved nick, check to see if one is 
+		// set.
+		if (!$overRideReservedNick) {
+			// Make a request to see if we have a reserved nick name in the room
+			// that we want to join.
+			$reservedNick = $this->_requestReservedNickname($roomJid);
+
+			if (!is_null($reservedNick)) {
+				$nick = $reservedNick;
+			}
+		}
+
+		// Attempt to enter the room by sending it a presence element.
+		$message = "<presence from='" . $this->_userName . '@' . $this->_realm
+				 . '/' . $this->_resource . "' to='" . $roomJid . '/' . $nick
+				 . "'><x xmlns='http://jabber.org/protocol/muc'/></presence>";
+		$this->_stream->send($message);
+		$this->_logger->debug('Attempting to join the room ' . $roomJid);
+
+		// Should now get a list of presences back containing the details of all
+		// the other occupants of the room.
+		$response = false;
+		while(!$response) {
+			$response = $this->_waitForServer('presence');
+		}
+		$this->_logger->debug('Received: ' . $response->asXML());
 
 	}
 
 	public function message($to, $text)
 	{
-		$message = "<message to='" . $to . "' from='" . $this->_userName . '/' 
-				 . $this->_resource . "' xml:lang='en'><body>" . $text
-				 . "</body></message>";
+		$message = "<message to='" . $to . "' from='" . $this->_userName . '@'
+				 . $this->_realm . '/' . $this->_resource . "' xml:lang='en'>"
+				 . "<body>" . $text . "</body></message>";
 		$this->_stream->send($message);
 	}
 
@@ -442,6 +539,77 @@ class Xmpp_Connection
 		return in_array($mechanism, $this->_mechanisms);
 	}
 
+	protected function _discoverItems()
+	{
+		// Send IQ stanza asking server what items are associated with it.
+		$message = "<iq from='" . $this->_userName . '@' . $this->_realm . '/'
+				 . $this->_resource . "' id='" . uniqid() . "' "
+				 . "to='" . $this->_realm . "' type='get'>"
+				 . "<query xmlns='http://jabber.org/protocol/disco#items'/>"
+				 . '</iq>';
+		$this->_stream->send($message);
+		$this->_logger->debug('Querying for available services');
+
+		// Wait for iq response
+		$response = false;
+		while(!$response) {
+			$response = $this->_waitForServer('iq');
+		}
+		$this->_logger->debug('Received: ' . $response->asXML());
+
+		// Check if query tag is in response. If it is, then iterate over the
+		// children to get the items available.
+		if (isset($response->query)) {
+			foreach ($response->query->children() as $item) {
+				if ($item->getName() == 'item'
+					&& isset($item->attributes()->jid)
+					&& isset($item->attributes()->name)) {
+
+					// If items is null then we need to turn it into an array.
+					if (is_null($this->_items)) {
+						$this->_items = array();
+					}
+
+					$this->_items[] = array(
+						'jid'  => $item->attributes()->jid,
+						'name' => $item->attributes()->name,
+					);
+					
+				}
+			}
+		}
+	}
+
+	protected function _requestReservedNickname($roomJid) {
+
+		$message = "<iq from='" . $this->_userName . '@' . $this->_realm . '/'
+				 . $this->_resource . "' id='" . uniqid() . "' "
+				 . "to='" . $roomJid . "' type='get'>"
+				 . "<query xmlns='http://jabber.org/protocol/disco#info' "
+				 . "node='x-roomuser-item'/></iq>";
+		$this->_stream->send($message);
+		$this->_logger->debug('Querying for reserved nickname in ' . $roomJid);
+
+		// Wait for iq response
+		$response = false;
+		while(!$response) {
+			$response = $this->_waitForServer('iq');
+		}
+		$this->_logger->debug('Received: ' . $response->asXML());
+
+		// If query isn't empty then the user does have a reserved nickname.
+		if (isset($response->query) && count($response->query->children()) > 0
+			&& isset($response->query->identity)
+		) {
+			$reservedNick = $response->query->identity->attributes()->name;
+		} else {
+			$reservedNick = null;
+		}
+
+		return $reservedNick;
+
+	}
+
 	protected function _setMechanisms($features)
 	{
 
@@ -489,54 +657,51 @@ class Xmpp_Connection
 
 		$fromServer = false;
 
-		do {
-			// Wait for the stream to update
-			if ($this->_stream->select() > 0) {
+		// Wait for the stream to update
+		if ($this->_stream->select() > 0) {
 
-				// If something has come back, see if is the tag we have been
-				// waiting for.
-				$response = $this->_stream->read(4096);
+			// If something has come back, see if is the tag we have been
+			// waiting for.
+			$response = $this->_stream->read(4096);
 
-				// If the response isn't empty, load it into a SimpleXML element
-				if (trim($response) != '') {
+			// If the response isn't empty, load it into a SimpleXML element
+			if (trim($response) != '') {
 
-					// If the response from the server starts (where "starts
-					// with" means "appears after the xml prologue if one is
-					// present") with "<stream:stream and it doesn't have a
-					// closing "</stream:stream>" then we should append one so
-					// that it can be easily loaded into a SimpleXMLElement,
-					// otherwise it will cause an error to be thrown because of
-					// malformed XML.
+				// If the response from the server starts (where "starts
+				// with" means "appears after the xml prologue if one is
+				// present") with "<stream:stream and it doesn't have a
+				// closing "</stream:stream>" then we should append one so
+				// that it can be easily loaded into a SimpleXMLElement,
+				// otherwise it will cause an error to be thrown because of
+				// malformed XML.
 
-					// Check if response starts with XML Prologue:
-					if (strpos($response, "<?xml version='1.0' encoding='UTF-8'?>") === 0) {
-						$offset = 38;
-					} else {
-						$offset = 0;
-					}
-
-					// Check if first part of the actual response starts with
-					// <stream:stream
-					if (strpos($response, '<stream:stream ') === $offset) {
-						// If so, append a closing tag
-						$response .= '</stream:stream>';
-					}
-
-					if ($returnAsSimpleXml) {
-						$xml = simplexml_load_string($response);
-						if ($tag == '*' || $xml->getName() == $tag) {
-							$fromServer = $xml;
-						}
-					} else {
-						if ($tag == '*' || strpos($response, $tag)) {
-							$fromServer = $response;
-						}
-					}
+				// Check if response starts with XML Prologue:
+				if (strpos($response, "<?xml version='1.0' encoding='UTF-8'?>") === 0) {
+					$offset = 38;
+				} else {
+					$offset = 0;
 				}
 
+				// Check if first part of the actual response starts with
+				// <stream:stream
+				if (strpos($response, '<stream:stream ') === $offset) {
+					// If so, append a closing tag
+					$response .= '</stream:stream>';
+				}
+
+				if ($returnAsSimpleXml) {
+					$xml = simplexml_load_string($response);
+					if ($tag == '*' || $xml->getName() == $tag) {
+						$fromServer = $xml;
+					}
+				} else {
+					if ($tag == '*' || strpos($response, $tag)) {
+						$fromServer = $response;
+					}
+				}
 			}
 
-		} while ($fromServer === false);
+		}
 
 		return $fromServer;
 		
