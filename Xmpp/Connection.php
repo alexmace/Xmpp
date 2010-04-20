@@ -53,6 +53,13 @@ class Xmpp_Connection
 	 */
 	protected $_items = null;
 
+	/**
+	 * Holds an array of rooms that have been joined on this connection.
+	 *
+	 * @var array
+	 */
+	protected $_joinedRooms = array();
+
 	private $_lastResponse = null;
 
 	/**
@@ -483,13 +490,31 @@ class Xmpp_Connection
 		}
 		$this->_logger->debug('Received: ' . $response->asXML());
 
+		// Room has now been joined, if it isn't the array of joinedRooms, add
+		// it
+		if (!in_array($roomJid, $this->_joinedRooms)) {
+			$this->_joinedRooms[] = $roomJid;
+		}
+
 	}
 
+	/**
+	 * Sends a message
+	 *
+	 * @param string $to
+	 * @param string $text
+	 */
 	public function message($to, $text)
 	{
+		if (in_array($to, $this->_joinedRooms)) {
+			$type = 'groupchat';
+		} else {
+			$type = 'normal';
+		}
+
 		$message = "<message to='" . $to . "' from='" . $this->_userName . '@'
-				 . $this->_realm . '/' . $this->_resource . "' xml:lang='en'>"
-				 . "<body>" . $text . "</body></message>";
+				 . $this->_realm . '/' . $this->_resource . "' type='" . $type
+				 . "' xml:lang='en'><body>" . $text . "</body></message>";
 		$this->_stream->send($message);
 	}
 
