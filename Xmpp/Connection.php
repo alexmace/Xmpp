@@ -514,7 +514,7 @@ class Xmpp_Connection
 
 		$message = "<message to='" . $to . "' from='" . $this->_userName . '@'
 				 . $this->_realm . '/' . $this->_resource . "' type='" . $type
-				 . "' xml:lang='en'><body>" . $text . "</body></message>";
+				 . "' xml:lang='en'><body>" . htmlentities($text) . "</body></message>";
 		$this->_stream->send($message);
 	}
 
@@ -715,9 +715,33 @@ class Xmpp_Connection
 				}
 
 				if ($returnAsSimpleXml) {
+
+					// Always wrap the response in response tags because 
+					// somestimes it may contain multiple top level elements.
+					// Therefore we should wrap it some fake tags and process
+					// each one in turn until we get one that matches what we
+					// are after.
+					//
+					// TODO - perhaps add the ones we aren't interested into a
+					// buffer for processing later.
+					$response = '<response>' . $response . '</response>';
+
+					// If the xml prologue should be at the start, move it
+					// because it will now be in the wrong place. We can assume
+					// if $offset is not 0 that there was a prologue.
+					if ($offset != 0) {
+						$response = "<?xml version='1.0' encoding='UTF-8'?>"
+								  . str_replace("<?xml version='1.0' encoding='UTF-8'?>", '', $response);
+					}
+
 					$xml = simplexml_load_string($response);
-					if ($tag == '*' || $xml->getName() == $tag) {
-						$fromServer = $xml;
+
+					if ($xml instanceof SimpleXMLElement && $xml->getName() == 'response') {
+						foreach($xml->children() as $child) {
+							if ($tag == '*' || ($child instanceof SimpleXMLElement && $child->getName() == $tag)) {
+								$fromServer = $child;
+							}
+						}
 					}
 				} else {
 					if ($tag == '*' || strpos($response, $tag)) {
