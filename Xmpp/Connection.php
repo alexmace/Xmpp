@@ -223,7 +223,7 @@ class Xmpp_Connection
 
 			// Server should now respond with start of stream and list of
 			// features
-			$response = $this->_waitForServer('stream:stream', false);
+			$response = $this->_waitForServer('stream:stream');
 			$this->_logger->debug('Received: ' . $response);
 
 		}
@@ -271,16 +271,27 @@ class Xmpp_Connection
 
 			// Now we will expect to get a stream tag back from the server. Not
 			// sure if we're supposed to do anything with it, so we'll just drop
-			// it for now.
-			$response = $this->_waitForServer('stream:stream', false);
+			// it for now. May contain the features the server supports.
+			$response = $this->_waitForServer('stream:stream');
 			$this->_logger->debug('Received: ' . $response);
 
-			// Server should now send back a features tag telling us what
-			// features it supports. If it tells us to start tls then we will
-			// need to change to a secure connection. It will also tell us what
-			// authentication methods it supports.
-			$response = $this->_waitForServer('stream:features', false);
-			$this->_logger->debug('Received: ' . $response);
+			// If the response from the server does contain a features tag,
+			// don't bother querying server to get it.
+			// TODO - Xpath would probably be more sensible for this, but for
+			// now this'll work.
+			if (strpos($response->asXml(), '<stream:features') === false) {
+
+				// Server should now send back a features tag telling us what
+				// features it supports. If it tells us to start tls then we
+				// will need to change to a secure connection. It will also tell
+				// us what authentication methods it supports.
+				//
+				// Note we check for a "features" tag rather than
+				// stream:features because it is namespaced.
+				$response = $this->_waitForServer('features');
+				$this->_logger->debug('Received: ' . $response);
+
+			}
 
 			// Set mechanisms based on that tag
 			$this->_setMechanisms($response);
@@ -295,7 +306,7 @@ class Xmpp_Connection
 				$this->_stream->send($message);
 
 				// Wait to get the proceed message back from the server
-				$response = $this->_waitForServer('proceed', true);
+				$response = $this->_waitForServer('proceed');
 				$this->_logger->debug('Received: ' . $response->asXML());
 
 				// Once we have the proceed signal from the server, we should
@@ -309,7 +320,7 @@ class Xmpp_Connection
 
 				// Server should now respond with start of stream and list of
 				// features
-				$response = $this->_waitForServer('stream:stream', false);
+				$response = $this->_waitForServer('stream');
 				$this->_logger->debug('Received: ' . $response);
 
 				// Set mechanisms based on that tag
@@ -644,7 +655,7 @@ class Xmpp_Connection
 		// A response containing a stream:features tag should have been passed
 		// in. That should contain a mechanisms tag. Find the mechanisms tag and
 		// load it into a SimpleXMLElement object.
-		if (preg_match('/<stream:features>.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features, $matches) != 0) {
+		if (preg_match('/<stream:features>.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features->asXml(), $matches) != 0) {
 
 			// Clear out any existing mechanisms
 			$this->_mechanisms = array();
@@ -671,13 +682,11 @@ class Xmpp_Connection
 	/**
 	 * Waits for the server to send the specified tag back.
 	 *
-	 * @param string  $tag               Tag to wait for from the server
-	 * @param boolean $returnAsSimpleXml Will return the response as a
-	 *									 SimpleXMLElement
+	 * @param string  $tag               Tag to wait for from the server.
 	 * 
-	 * @return boolean|string|SimpleXMLElement
+	 * @return boolean|SimpleXMLElement
 	 */
-	protected function _waitForServer($tag, $returnAsSimpleXml = true)
+	protected function _waitForServer($tag)
 	{
 
 		$fromServer = false;
@@ -685,9 +694,15 @@ class Xmpp_Connection
 		// Wait for the stream to update
 		if ($this->_stream->select() > 0) {
 
-			// If something has come back, see if is the tag we have been
-			// waiting for.
-			$response = $this->_stream->read(4096);
+			$response = '';
+
+			// Continue reading from the connection until it ends in a '>' or
+			// we get no more data. Probably a little imprecise, but we can
+			// improve this later if needs be.
+			while (strrpos($response, '>') != strlen($response) - 1) {
+				$response .= $this->_stream->read(4096);
+			}
+			echo $response . "\n";
 
 			// If the response isn't empty, load it into a SimpleXML element
 			if (trim($response) != '') {
@@ -716,15 +731,18 @@ class Xmpp_Connection
 
 				if ($returnAsSimpleXml) {
 
-					// Always wrap the response in response tags because 
-					// somestimes it may contain multiple top level elements.
-					// Therefore we should wrap it some fake tags and process
-					// each one in turn until we get one that matches what we
-					// are after.
-					//
-					// TODO - perhaps add the ones we aren't interested into a
-					// buffer for processing later.
-					$response = '<response>' . $response . '</response>';
+					// For consistent handling and correct stream namespace
+					// support, we should wrap all responses in the
+					// stream:stream tags to make sure everything works as
+					// expected. Unless the response already contains such tags.
+					if (strpos($response, '<stream:stream') === false) {
+						$response = '<stream:stream '
+								  . 'xmlns:stream="http://etherx.jabber.org/streams" '
+								  . 'xmlns="jabber:client" '
+								  . 'from="' . $this->_realm . '" '
+								  . 'xml:lang="en" version="1.0">'
+								  . $response . '</stream:stream>';
+					}
 
 					// If the xml prologue should be at the start, move it
 					// because it will now be in the wrong place. We can assume
@@ -736,16 +754,28 @@ class Xmpp_Connection
 
 					$xml = simplexml_load_string($response);
 
-					if ($xml instanceof SimpleXMLElement && $xml->getName() == 'response') {
-						foreach($xml->children() as $child) {
-							if ($tag == '*' || ($child instanceof SimpleXMLElement && $child->getName() == $tag)) {
-								$fromServer = $child;
+					$name = $xml->getName();
+
+					// If we want the stream element itself, just return that, 
+					// otherwise check the contents of the stream.
+					if ($tag == 'stream:stream') {
+						$fromServer = $xml;
+					} else if ($xml instanceof SimpleXMLElement
+							   && $xml->getName() == 'stream') {
+
+						// Get the namespaces used at the root level of the
+						// document. Add a blank namespace on for anything that
+						// isn't namespaced. Then we can iterate over all of the
+						// elements in the doc.
+						$namespaces = $xml->getNamespaces();
+						$namespaces['blank'] = '';
+						foreach ($namespaces as $namespace) {
+							foreach ($xml->children($namespace) as $child) {
+								if ($tag == '*' || ($child instanceof SimpleXMLElement && $child->getName() == $tag)) {
+									$fromServer = $child;
+								}
 							}
 						}
-					}
-				} else {
-					if ($tag == '*' || strpos($response, $tag)) {
-						$fromServer = $response;
 					}
 				}
 			}
