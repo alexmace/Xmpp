@@ -252,7 +252,7 @@ class Xmpp_Connection
 	public function connect()
 	{
 		// Figure out where we need to connect to
-		$server = 'tcp://' . $this->_host . ':' . $this->_port;
+		$server = $this->_getServer();
 
 		try {
 
@@ -333,6 +333,23 @@ class Xmpp_Connection
 			// Exception.
 			throw new Xmpp_Exception('Failed to connect: ' . $e->getMessage());
 		}
+	}
+
+	public function disconnect()
+	{
+		$message = '</stream:stream>';
+
+		// If the stream isn't set, get one. Seems unlikely that we'd want to be
+		// disconnecting when no connection is open via a stream, but it saves
+		// us having to go through the rigormoral of actually setting up a
+		// proper, full mock connection.
+		if (!isset($this->_stream)) {
+			$this->_stream = $this->_getStream($this->_getServer());
+		}
+
+		$this->_stream->send($message);
+		$this->_stream->disconnect();
+		$this->_logger->debug('Disconnected');
 	}
 
 	public function establishSession()
@@ -540,6 +557,11 @@ class Xmpp_Connection
 		}
 	}
 
+	protected function _getServer()
+	{
+		return 'tcp://' . $this->_host . ':' . $this->_port;
+	}
+
 	/**
 	 * Gets a Stream object that encapsulates the actual connection to the 
 	 * server
@@ -729,51 +751,48 @@ class Xmpp_Connection
 					$response .= '</stream:stream>';
 				}
 
-				if ($returnAsSimpleXml) {
+				// For consistent handling and correct stream namespace
+				// support, we should wrap all responses in the
+				// stream:stream tags to make sure everything works as
+				// expected. Unless the response already contains such tags.
+				if (strpos($response, '<stream:stream') === false) {
+					$response = '<stream:stream '
+							  . 'xmlns:stream="http://etherx.jabber.org/streams" '
+							  . 'xmlns="jabber:client" '
+							  . 'from="' . $this->_realm . '" '
+							  . 'xml:lang="en" version="1.0">'
+							  . $response . '</stream:stream>';
+				}
 
-					// For consistent handling and correct stream namespace
-					// support, we should wrap all responses in the
-					// stream:stream tags to make sure everything works as
-					// expected. Unless the response already contains such tags.
-					if (strpos($response, '<stream:stream') === false) {
-						$response = '<stream:stream '
-								  . 'xmlns:stream="http://etherx.jabber.org/streams" '
-								  . 'xmlns="jabber:client" '
-								  . 'from="' . $this->_realm . '" '
-								  . 'xml:lang="en" version="1.0">'
-								  . $response . '</stream:stream>';
-					}
+				// If the xml prologue should be at the start, move it
+				// because it will now be in the wrong place. We can assume
+				// if $offset is not 0 that there was a prologue.
+				if ($offset != 0) {
+					$response = "<?xml version='1.0' encoding='UTF-8'?>"
+							  . str_replace("<?xml version='1.0' encoding='UTF-8'?>", '', $response);
+				}
 
-					// If the xml prologue should be at the start, move it
-					// because it will now be in the wrong place. We can assume
-					// if $offset is not 0 that there was a prologue.
-					if ($offset != 0) {
-						$response = "<?xml version='1.0' encoding='UTF-8'?>"
-								  . str_replace("<?xml version='1.0' encoding='UTF-8'?>", '', $response);
-					}
+				$xml = simplexml_load_string($response);
 
-					$xml = simplexml_load_string($response);
+				$name = $xml->getName();
 
-					$name = $xml->getName();
+				// If we want the stream element itself, just return that,
+				// otherwise check the contents of the stream.
+				if ($tag == 'stream:stream') {
+					$fromServer = $xml;
+				} else if ($xml instanceof SimpleXMLElement
+						   && $xml->getName() == 'stream') {
 
-					// If we want the stream element itself, just return that, 
-					// otherwise check the contents of the stream.
-					if ($tag == 'stream:stream') {
-						$fromServer = $xml;
-					} else if ($xml instanceof SimpleXMLElement
-							   && $xml->getName() == 'stream') {
-
-						// Get the namespaces used at the root level of the
-						// document. Add a blank namespace on for anything that
-						// isn't namespaced. Then we can iterate over all of the
-						// elements in the doc.
-						$namespaces = $xml->getNamespaces();
-						$namespaces['blank'] = '';
-						foreach ($namespaces as $namespace) {
-							foreach ($xml->children($namespace) as $child) {
-								if ($tag == '*' || ($child instanceof SimpleXMLElement && $child->getName() == $tag)) {
-									$fromServer = $child;
-								}
+					// Get the namespaces used at the root level of the
+					// document. Add a blank namespace on for anything that
+					// isn't namespaced. Then we can iterate over all of the
+					// elements in the doc.
+					$namespaces = $xml->getNamespaces();
+					$namespaces['blank'] = '';
+					foreach ($namespaces as $namespace) {
+						foreach ($xml->children($namespace) as $child) {
+							if ($tag == '*' || ($child instanceof SimpleXMLElement && $child->getName() == $tag)) {
+								$fromServer = $child;
 							}
 						}
 					}
