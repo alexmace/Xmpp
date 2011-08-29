@@ -9,7 +9,7 @@
  *
  * @author alex
  */
-class Xmpp_Message
+class Xmpp_Message extends Xmpp_Stanza
 {
 	const TYPE_CHAT = 'chat';
 	const TYPE_ERROR = 'error';
@@ -21,20 +21,16 @@ class Xmpp_Message
 
 	private $_error = null;
 
-	private $_from = null;
-
 	private $_lang = null;
 
 	private $_subjects = array();
 
 	private $_thread = null;
-
-	private $_to = null;
-
-	private $_type = null;
  
 	public function  __construct(SimpleXMLElement $message)
 	{
+		
+		parent::__construct($message);
 
 		// Get the type of the message
 		if (isset($message['type'])
@@ -55,16 +51,8 @@ class Xmpp_Message
 			}
 		}
 
-		if (isset($message['from'])) {
-			$this->_from = (string)$message['from'];
-		}
-
 		if (isset($message['xml:lang'])) {
 			$this->_lang = (string)$message['xml:lang'];
-		}
-
-		if (isset($message['to'])) {
-			$this->_to = (string)$message['to'];
 		}
 
 		foreach ($message->subject as $subject) {
@@ -108,10 +96,6 @@ class Xmpp_Message
 		return $this->_error;
 	}
 
-	public function getFrom() {
-		return $this->_from;
-	}
-
 	public function getLang() {
 		return $this->_lang;
 	}
@@ -122,14 +106,6 @@ class Xmpp_Message
 
 	public function getThread() {
 		return $this->_thread;
-	}
-
-	public function getTo() {
-		return $this->_to;
-	}
-
-	public function getType() {
-		return $this->_type;
 	}
 
 }

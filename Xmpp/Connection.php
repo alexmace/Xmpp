@@ -227,6 +227,8 @@ class Xmpp_Connection
 			$this->_logger->debug('Received: ' . $response);
 
 		}
+
+		return true;
 	}
 
 	public function bind()
@@ -242,6 +244,8 @@ class Xmpp_Connection
 		// Should get an iq response from the server confirming the jid
 		$response = $this->_waitForServer('iq');
 		$this->_logger->debug('Response: ' . $response->asXML());
+
+		return true;
 	}
 
 	/**
@@ -333,6 +337,9 @@ class Xmpp_Connection
 			// Exception.
 			throw new Xmpp_Exception('Failed to connect: ' . $e->getMessage());
 		}
+
+		return true;
+
 	}
 
 	public function disconnect()
@@ -350,6 +357,8 @@ class Xmpp_Connection
 		$this->_stream->send($message);
 		$this->_stream->disconnect();
 		$this->_logger->debug('Disconnected');
+
+		return true;
 	}
 
 	public function establishSession()
@@ -366,8 +375,18 @@ class Xmpp_Connection
 		$response = $this->_waitForServer('iq');
 		$this->_logger->debug('Received: ' . $response->asXML());
 
+		return true;
 
+	}
+	
+	public function getIq()
+	{
+		if ((string)$this->_lastResponse->getName() != 'iq') {
+			throw new Xmpp_Exception('Last stanza received was not an iq stanza');
+		}
 
+		return new Xmpp_Iq($this->_lastResponse);
+		
 	}
 
 	public function getMessage()
@@ -410,6 +429,8 @@ class Xmpp_Connection
 			$message .= '</presence>';
 		}
 		$this->_stream->send($message);
+
+		return true;
 	}
 
 	/**
@@ -524,6 +545,8 @@ class Xmpp_Connection
 			$this->_joinedRooms[] = $roomJid;
 		}
 
+		return true;
+
 	}
 
 	/**
@@ -544,6 +567,20 @@ class Xmpp_Connection
 				 . $this->_realm . '/' . $this->_resource . "' type='" . $type
 				 . "' xml:lang='en'><body>" . htmlentities($text) . "</body></message>";
 		$this->_stream->send($message);
+
+		return true;
+	}
+	
+	public function ping()
+	{
+		$message = "<iq to='" . $this->_realm . "' from='" . $this->_userName . '@'
+				 . $this->_realm . '/' . $this->_resource . "' type='get' "
+				 . "id='" . uniqid() . "'>"
+				 . "<ping xmlns='urn:xmpp:ping'/>"
+				 . "</iq>";
+		$this->_stream->send($message);
+		
+		return true;
 	}
 
 	/**
