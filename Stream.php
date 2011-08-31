@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Stream
  *
@@ -39,44 +40,41 @@ class Stream
 	 * @param resource $context      Context of the stream
 	 */
 	public function __construct(
-		$remoteSocket, $timeOut = null, $flags = null, $context = null
-	) {
+	$remoteSocket, $timeOut = null, $flags = null, $context = null
+	)
+	{
 
-		// Attempt to set up logging
+// Attempt to set up logging
 		$this->_logger = $this->_getLogger(Zend_Log::EMERG);
 
-		// Attempt to make the connection. stream_socket_client needs to be
-		// called in the correct way based on what we have been passed.
+// Attempt to make the connection. stream_socket_client needs to be
+// called in the correct way based on what we have been passed.
 		if (is_null($timeOut) && is_null($flags) && is_null($context)) {
 			$this->_conn = stream_socket_client(
-				$remoteSocket, $this->_errorNumber, $this->_errorString);
+					$remoteSocket, $this->_errorNumber, $this->_errorString);
 		} else if (is_null($flags) && is_null($context)) {
 			$this->_conn = stream_socket_client(
-				$remoteSocket, $this->_errorNumber, $this->_errorString,
-				$timeOut);
+					$remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut);
 		} else if (is_null($context)) {
 			$this->_conn = stream_socket_client(
-				$remoteSocket, $this->_errorNumber, $this->_errorString,
-				$timeOut, $flags);
+					$remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut, $flags);
 		} else {
 			$this->_conn = stream_socket_client(
-				$remoteSocket, $this->_errorNumber, $this->_errorString,
-				$timeOut, $flags, $context);
+					$remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut, $flags, $context);
 		}
 
-		// If the connection comes back as false, it could not be established.
-		// Note that a connection may appear to be successful at this stage and
-		// yet be invalid. e.g. UDP connections are "connectionless" and not
-		// actually made until they are required.
+// If the connection comes back as false, it could not be established.
+// Note that a connection may appear to be successful at this stage and
+// yet be invalid. e.g. UDP connections are "connectionless" and not
+// actually made until they are required.
 		if ($this->_conn === false) {
 			throw new Stream_Exception($this->_errorString, $this->_errorNumber);
 		}
-		
-		// Set the time out of the stream.
+
+// Set the time out of the stream.
 		stream_set_timeout($this->_conn, 1);
 
 		$this->_connected = true;
-
 	}
 
 	/**
@@ -96,7 +94,7 @@ class Stream
 	 */
 	public function disconnect()
 	{
-		// If there is a valid connection it will attempt to close it.
+// If there is a valid connection it will attempt to close it.
 		if (!is_null($this->_conn) && $this->_conn !== false) {
 			fclose($this->_conn);
 			$this->_conn = null;
@@ -153,7 +151,6 @@ class Stream
 		return stream_select($read, $write, $except, 5);
 	}
 
-
 	/**
 	 * Will sent the message passed in down the stream
 	 *
@@ -163,10 +160,10 @@ class Stream
 	 */
 	public function send($message)
 	{
-		// Perhaps need to check the stream is still open here?
+// Perhaps need to check the stream is still open here?
 		$this->_logger->debug('Sent: ' . $message);
 
-		// Write out the message to the stream
+// Write out the message to the stream
 		return fwrite($this->_conn, $message);
 	}
 

@@ -1,111 +1,163 @@
 <?php
-/* 
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+
+/**
+ * PHP XMPP Library
+ *
+ * PHP version 5
+ *
+ * LICENSE
+ *
+ * This source file is subject to the new BSD license that is bundled with this 
+ * package in the file LICENSE.
+ * It is also available through the world-wide-web at this URL: 
+ * http://m.me.uk/license
+ *
+ * @category  XMPP
+ * @package   XMPP
+ * @author    Alex Mace <a@m.me.uk>
+ * @copyright 2010-2011 Alex Mace (http://m.me.uk)
+ * @license   http://m.me.uk/license New BSD License
+ * @link      http://m.me.uk/xmpp
  */
 
 /**
- * Description of Message
+ * Represents an XMPP <message> 
  *
- * @author alex
+ * @category  XMPP
+ * @package   XMPP
+ * @author    Alex Mace <a@m.me.uk>
+ * @copyright 2010-2011 Alex Mace (http://m.me.uk)
+ * @license   http://m.me.uk/license New BSD License
+ * @link      http://m.me.uk/xmpp
  */
 class Xmpp_Message extends Xmpp_Stanza
 {
-	const TYPE_CHAT = 'chat';
-	const TYPE_ERROR = 'error';
-	const TYPE_GROUPCHAT = 'groupchat';
-	const TYPE_HEADLINE = 'headline';
-	const TYPE_NORMAL = 'normal';
+    const TYPE_CHAT = 'chat';
+    const TYPE_ERROR = 'error';
+    const TYPE_GROUPCHAT = 'groupchat';
+    const TYPE_HEADLINE = 'headline';
+    const TYPE_NORMAL = 'normal';
 
-	private $_bodies = array();
+    private $_bodies = array();
+    private $_error = null;
+    private $_lang = null;
+    private $_subjects = array();
+    private $_thread = null;
 
-	private $_error = null;
+    /**
+     * Class constructor.
+     * 
+     * @param SimpleXMLElement $message The XML of the message.
+     */
+    public function __construct(SimpleXMLElement $message)
+    {
 
-	private $_lang = null;
+        parent::__construct($message);
 
-	private $_subjects = array();
+        // Get the type of the message
+        if (isset($message['type'])
+            && ((string) $message['type'] == self::TYPE_CHAT
+            || (string) $message['type'] == self::TYPE_ERROR
+            || (string) $message['type'] == self::TYPE_GROUPCHAT
+            || (string) $message['type'] == self::TYPE_HEADLINE)
+        ) {
+            $this->_type = (string) $message['type'];
+        } else {
+            $this->_type = self::TYPE_NORMAL;
+        }
 
-	private $_thread = null;
- 
-	public function  __construct(SimpleXMLElement $message)
-	{
-		
-		parent::__construct($message);
+        if ($this->_type == self::TYPE_ERROR) {
+            if (isset($message->error[0])) {
+                $this->_error = (string) $message->error[0];
+            } else {
+                $this->_error = '';
+            }
+        }
 
-		// Get the type of the message
-		if (isset($message['type'])
-			&& ((string)$message['type'] == self::TYPE_CHAT
-				|| (string)$message['type'] == self::TYPE_ERROR
-				|| (string)$message['type'] == self::TYPE_GROUPCHAT
-				|| (string)$message['type'] == self::TYPE_HEADLINE)) {
-			$this->_type = (string)$message['type'];
-		} else {
-			$this->_type = self::TYPE_NORMAL;
-		}
+        if (isset($message['xml:lang'])) {
+            $this->_lang = (string) $message['xml:lang'];
+        }
 
-		if ($this->_type == self::TYPE_ERROR) {
-			if (isset($message->error[0])) {
-				$this->_error = (string)$message->error[0];
-			} else {
-				$this->_error = '';
-			}
-		}
+        foreach ($message->subject as $subject) {
+            $thisSubject = array(
+                'content' => (string) $subject,
+            );
 
-		if (isset($message['xml:lang'])) {
-			$this->_lang = (string)$message['xml:lang'];
-		}
+            if (isset($subject['xml:lang'])) {
+                $thisSubject['lang'] = (string) $subject['xml:lang'];
+            }
 
-		foreach ($message->subject as $subject) {
-			$thisSubject = array(
-				'content' => (string)$subject,
-			);
+            $this->_subjects[] = $thisSubject;
+        }
 
-			if (isset($subject['xml:lang'])) {
-				$thisSubject['lang'] = (string)$subject['xml:lang'];
-			}
+        foreach ($message->body as $body) {
+            $thisBody = array(
+                'content' => (string) $body,
+            );
 
-			$this->_subjects[] = $thisSubject;
-		}
+            if (isset($body['xml:lang'])) {
+                $thisBody['lang'] = (string) $body['xml:lang'];
+            }
 
-		foreach ($message->body as $body) {
-			$thisBody = array(
-				'content' => (string)$body,
-			);
-
-			if (isset($body['xml:lang'])) {
-				$thisBody['lang'] = (string)$body['xml:lang'];
-			}
-
-			$this->_bodies[] = $thisBody;
-		}
+            $this->_bodies[] = $thisBody;
+        }
 
 
-		if (isset($message->thread[0])) {
-			$this->_thread = (string)$message->thread[0];
-		} else {
-			$this->_thread = '';
-		}
-		
-	}
+        if (isset($message->thread[0])) {
+            $this->_thread = (string) $message->thread[0];
+        } else {
+            $this->_thread = '';
+        }
+    }
 
-	public function getBodies() {
-		return $this->_bodies;
-	}
-	
-	public function getError() {
-		return $this->_error;
-	}
+    /**
+     * Gets the bodies contained in the message.
+     * 
+     * @return type 
+     */
+    public function getBodies()
+    {
+        return $this->_bodies;
+    }
 
-	public function getLang() {
-		return $this->_lang;
-	}
+    /**
+     * Gets the error associated with this message.
+     * 
+     * @return type 
+     */
+    public function getError()
+    {
+        return $this->_error;
+    }
 
-	public function getSubjects() {
-		return $this->_subjects;
-	}
+    /**
+     * Gets the language of the message.
+     * 
+     * @return type 
+     */
+    public function getLang()
+    {
+        return $this->_lang;
+    }
 
-	public function getThread() {
-		return $this->_thread;
-	}
+    /**
+     * Gets the subjects of the message.
+     * 
+     * @return type 
+     */
+    public function getSubjects()
+    {
+        return $this->_subjects;
+    }
+
+    /**
+     * Gets the thread the message is associated with.
+     * 
+     * @return type 
+     */
+    public function getThread()
+    {
+        return $this->_thread;
+    }
 
 }

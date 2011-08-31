@@ -1,49 +1,57 @@
 <?php
 /**
- * Test File
+ * PHP XMPP Library
  *
- * This is just a test file for the XMPP class to test it out.
+ * PHP version 5
  *
- * PHP Version 5
+ * LICENSE
  *
- * @package   Tests
- * @author    Alex Mace <alex@hollytree.co.uk>
- * @copyright 2010 Alex Mace
- * @license   The PHP License http://www.php.net/license/
+ * This source file is subject to the new BSD license that is bundled with this 
+ * package in the file LICENSE.
+ * It is also available through the world-wide-web at this URL: 
+ * http://m.me.uk/license
+ *
+ * @category  XMPP
+ * @package   XMPP
+ * @author    Alex Mace <a@m.me.uk>
+ * @copyright 2010-2011 Alex Mace (http://m.me.uk)
+ * @license   http://m.me.uk/license New BSD License
+ * @link      http://m.me.uk/xmpp
  */
 
 // Add Zend Framework onto the include path
 ini_set(
-	'include_path',
-	'/Users/alex/Sites/zf/library' . PATH_SEPARATOR . ini_get('include_path'));
+    'include_path', 
+    '/Users/alex/Sites/zf/library' . PATH_SEPARATOR . ini_get('include_path')
+);
 date_default_timezone_set('Europe/London');
 
 require_once 'XMPP/Connection.php';
 require_once 'XMPP/Message.php';
 
 try {
-	$xmpp = new Xmpp_Connection(
-		'phabbio@macefield.hollytree.co.uk', 'phabbio', '192.168.0.10'
-	);
-	$xmpp->connect();
-	$xmpp->authenticate();
-	$xmpp->bind();
-	$xmpp->establishSession();
-	$xmpp->presence();
-	if ($xmpp->isMucSupported()) {
-		$xmpp->join('testing@conference.macefield.hollytree.co.uk', 'alex');
-		$xmpp->message('testing@conference.macefield.hollytree.co.uk', 'Hello room');
-	}
-	while(true) {
-		$type = $xmpp->wait();
+    $xmpp = new Xmpp_Connection(
+                    'phabbio@macefield.hollytree.co.uk', 'phabbio', '192.168.0.10'
+    );
+    $xmpp->connect();
+    $xmpp->authenticate();
+    $xmpp->bind();
+    $xmpp->establishSession();
+    $xmpp->presence();
+    if ($xmpp->isMucSupported()) {
+        $xmpp->join('testing@conference.macefield.hollytree.co.uk', 'alex');
+        $xmpp->message('testing@conference.macefield.hollytree.co.uk', 'Hello room');
+    }
+    while (true) {
+        $type = $xmpp->wait();
 
-		if ($type == 'message') {
-			$message = $xmpp->getMessage();
-			var_dump($message->getBodies());
-		}
-	}
+        if ($type == 'message') {
+            $message = $xmpp->getMessage();
+            var_dump($message->getBodies());
+        }
+    }
 } catch (XMPP_Exception $e) {
-	echo $e->getMessage() . "\n";
+    echo $e->getMessage() . "\n";
 }
 /*
 <?xml version="1.0"?>
