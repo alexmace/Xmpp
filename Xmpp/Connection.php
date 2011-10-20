@@ -580,7 +580,11 @@ class Xmpp_Connection
 	 */
 	public function message($to, $text)
 	{
-		if (in_array($to, $this->_joinedRooms)) {
+
+		// Get the first part of the JID
+		$firstPart = array_shift(explode('/', $to));
+
+		if (in_array($firstPart, $this->_joinedRooms)) {
 			$type = 'groupchat';
 		} else {
 			$type = 'normal';
@@ -670,11 +674,11 @@ class Xmpp_Connection
 
 		// Wait for iq response
 		$response = false;
-		while(!$response) {
+		while(!$response || $response->getName() != 'iq' || strpos($response->asXml(), '<item') === false) {
 			$response = $this->_waitForServer('iq');
 		}
 		$this->_logger->debug('Received: ' . $response->asXML());
-
+		
 		// Check if query tag is in response. If it is, then iterate over the
 		// children to get the items available.
 		if (isset($response->query)) {

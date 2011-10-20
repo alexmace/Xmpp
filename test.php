@@ -22,16 +22,17 @@
 // Add Zend Framework onto the include path
 ini_set(
     'include_path', 
-    '/Users/alex/Sites/zf/library' . PATH_SEPARATOR . ini_get('include_path')
+    '/Users/amace/Sites/zendframework/library' . PATH_SEPARATOR . ini_get('include_path')
 );
 date_default_timezone_set('Europe/London');
 
-require_once 'XMPP/Connection.php';
-require_once 'XMPP/Message.php';
+require_once 'Xmpp/Connection.php';
+require_once 'Xmpp/Stanza.php';
+require_once 'Xmpp/Message.php';
 
 try {
     $xmpp = new Xmpp_Connection(
-                    'phabbio@macefield.hollytree.co.uk', 'phabbio', '192.168.0.10'
+                    'phergie@bacon.server.dev', 'gregregregragr', 'bacon.server.dev'
     );
     $xmpp->connect();
     $xmpp->authenticate();
@@ -39,8 +40,8 @@ try {
     $xmpp->establishSession();
     $xmpp->presence();
     if ($xmpp->isMucSupported()) {
-        $xmpp->join('testing@conference.macefield.hollytree.co.uk', 'alex');
-        $xmpp->message('testing@conference.macefield.hollytree.co.uk', 'Hello room');
+        $xmpp->join('devteam@conference.bacon.server.dev', 'alex', true);
+        $xmpp->message('devteam@conference.bacon.server.dev', 'Hello room');
     }
     while (true) {
         $type = $xmpp->wait();
