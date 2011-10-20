@@ -211,11 +211,27 @@ class Xmpp_Connection
 			$this->_logger->debug('Challenge Response: ' . $message);
 			$this->_stream->send($message);
 
-			// Should get another challenge back from the server. Openfire seems
-			// not to bother with this and just send a success tag back with the
+			// Should get another challenge back from the server. Some servers
+			// don't bother though and just send a success back with the
 			// rspauth encoded in it.
-			$response = $this->_waitForServer('success');
+			$response = $this->_waitForServer('*');
 			$this->_logger->debug('Response: ' . $response->asXML());
+
+			// If we have got a challenge, we need to send a response, blank
+			// this time.
+			if ($response->getName() == 'challenge') {
+				$message = "<response xmlns='urn:ietf:params:xml:ns:xmpp-sasl'/>";
+
+				// Send the response
+				$this->_logger->debug('Challenge Response: ' . $message);
+				$this->_stream->send($message);
+
+				// This time we should get a success message.
+				$response = $this->_waitForServer('success');
+				$this->_logger->debug('Response: ' . $response->asXML());
+
+			}
+
 
 			// Now that we have been authenticated, a new stream needs to be
 			// started.
@@ -225,6 +241,13 @@ class Xmpp_Connection
 			// features
 			$response = $this->_waitForServer('stream:stream');
 			$this->_logger->debug('Received: ' . $response);
+
+			// If the server has not yet said what features it supports, wait
+			// for that
+			if (strpos($response->asXML(), 'stream:features') === false) {
+				$response = $this->_waitForServer('stream:features');
+				$this->_logger->debug('Received: ' . $response);
+			}
 
 		}
 
@@ -242,7 +265,7 @@ class Xmpp_Connection
 		$this->_stream->send($message);
 
 		// Should get an iq response from the server confirming the jid
-		$response = $this->_waitForServer('iq');
+		$response = $this->_waitForServer('*');
 		$this->_logger->debug('Response: ' . $response->asXML());
 
 		return true;
@@ -714,7 +737,7 @@ class Xmpp_Connection
 		// A response containing a stream:features tag should have been passed
 		// in. That should contain a mechanisms tag. Find the mechanisms tag and
 		// load it into a SimpleXMLElement object.
-		if (preg_match('/<stream:features>.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features->asXml(), $matches) != 0) {
+		if (preg_match('/<stream:features.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features->asXml(), $matches) != 0) {
 
 			// Clear out any existing mechanisms
 			$this->_mechanisms = array();
@@ -775,8 +798,9 @@ class Xmpp_Connection
 				// malformed XML.
 
 				// Check if response starts with XML Prologue:
-				if (strpos($response, "<?xml version='1.0' encoding='UTF-8'?>") === 0) {
-					$offset = 38;
+				if (preg_match("/^<\?xml version='1.0'( encoding='UTF-8')?\?>/", $response, $matches) == 1) {
+					$offset = strlen($matches[0]);
+					$prologue = $matches[0];
 				} else {
 					$offset = 0;
 				}
@@ -795,6 +819,7 @@ class Xmpp_Connection
 				if (strpos($response, '<stream:stream') === false) {
 					$response = '<stream:stream '
 							  . 'xmlns:stream="http://etherx.jabber.org/streams" '
+							  . "xmlns:ack='http://www.xmpp.org/extensions/xep-0198.html#ns' "
 							  . 'xmlns="jabber:client" '
 							  . 'from="' . $this->_realm . '" '
 							  . 'xml:lang="en" version="1.0">'
@@ -805,8 +830,8 @@ class Xmpp_Connection
 				// because it will now be in the wrong place. We can assume
 				// if $offset is not 0 that there was a prologue.
 				if ($offset != 0) {
-					$response = "<?xml version='1.0' encoding='UTF-8'?>"
-							  . str_replace("<?xml version='1.0' encoding='UTF-8'?>", '', $response);
+					$response = $prologue
+							  . str_replace($prologue, '', $response);
 				}
 
 				$xml = simplexml_load_string($response);
