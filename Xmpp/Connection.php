@@ -586,6 +586,7 @@ class Xmpp_Connection
 
 		if (in_array($firstPart, $this->_joinedRooms)) {
 			$type = 'groupchat';
+			$to = $firstPart;
 		} else {
 			$type = 'normal';
 		}
