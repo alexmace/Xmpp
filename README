@@ -1,0 +1,7 @@
+XMPP Library for PHP
+
+I wrote this XMPP library for PHP because I wanted to write a XMPP driver for 
+the PHP IRC bot, Phergie. I spent some time looking at the libraries that were 
+already out there (XMPPHP and Jaxl). At the time, neither supported XEP-0045 
+(Multi-User Chat) and weren't hosted on Github, so I decided to write my own. 
+This library is the result of that effort.
