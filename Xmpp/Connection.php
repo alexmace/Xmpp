@@ -178,7 +178,7 @@ class Xmpp_Connection
 
 			// Process the parts and put them into the array for easy access
 			foreach($challengeParts as $part) {
-				list($key,$value) = explode('=', $part);
+				list($key,$value) = explode('=', trim($part), 2);
 				$challenge[$key] = trim($value, '"');
 			}
 
