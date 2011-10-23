@@ -81,7 +81,7 @@ abstract class Xmpp_Stanza
      */
     public function getType()
     {
-        return $this->type;
+        return $this->_type;
     }
 
 }
