@@ -1,0 +1,16 @@
+XMPP Library for PHP
+
+I wrote this XMPP library for PHP because I wanted to write a XMPP driver for 
+the PHP IRC bot, Phergie (http://phergie.org). I spent some time looking at the 
+libraries that were already out there (XMPPHP and Jaxl). At the time, neither 
+supported XEP-0045 (Multi-User Chat) and weren't hosted on Github, so I decided to 
+write my own. There are probably some similarities between this library and XMPPHP, 
+since I was using XMPPHP for reference while getting started with this library.
+
+It currently does what I need, namely:
+
+* Connects to and authenticates (using DIGEST-MD5) against XMPP servers (tested 
+  against Openfire and jabberd2)
+* Supports SSL/TLS connections
+* Allows joining of MUC rooms
+* Sends messages to individuals and MUC rooms.
