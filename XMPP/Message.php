@@ -61,12 +61,12 @@ class Xmpp_Message extends Xmpp_Stanza
             || (string) $message['type'] == self::TYPE_GROUPCHAT
             || (string) $message['type'] == self::TYPE_HEADLINE)
         ) {
-            $this->_type = (string) $message['type'];
+            $this->type = (string) $message['type'];
         } else {
-            $this->_type = self::TYPE_NORMAL;
+            $this->type = self::TYPE_NORMAL;
         }
 
-        if ($this->_type == self::TYPE_ERROR) {
+        if ($this->type == self::TYPE_ERROR) {
             if (isset($message->error[0])) {
                 $this->_error = (string) $message->error[0];
             } else {
