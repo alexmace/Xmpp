@@ -889,11 +889,15 @@ class Xmpp_Connection
 
             $response = '';
 
-            // Continue reading from the connection until it ends in a '>' or
-            // we get no more data. Probably a little imprecise, but we can
-            // improve this later if needs be.
-            while (strrpos($response, '>') != strlen($response) - 1) {
+            $done = false;
+            
+            // Read data from the connection.
+            while (!$done) {
+                $currentLength = strlen($response);                
                 $response .= $this->_stream->read(4096);
+                if (strlen($response) == $currentLength) {
+                    $done = true;
+                }
             }
             echo $response . "\n";
 
