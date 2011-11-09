@@ -815,6 +815,7 @@ class Xmpp_Connection
             '&#235;','&#236;','&#237;','&#238;','&#239;','&#240;','&#241;','&#242;',
             '&#243;','&#244;','&#245;','&#246;','&#247;','&#248;','&#249;','&#250;',
             '&#251;','&#252;','&#253;','&#254;','&#255;', '&#8195;', '&#8211;',
+			'&#8217;'
         );
         $html = array(
             '&quot;','&amp;','&amp;','&lt;','&gt;','&nbsp;','&iexcl;','&cent;',
@@ -831,7 +832,7 @@ class Xmpp_Connection
             '&eacute;','&ecirc;','&euml;','&igrave;','&iacute;','&icirc;','&iuml;',
             '&eth;','&ntilde;','&ograve;','&oacute;','&ocirc;','&otilde;','&ouml;',
             '&divide;','&oslash;','&ugrave;','&uacute;','&ucirc;','&uuml;',
-            '&yacute;','&thorn;','&yuml;', '&emsp;', '&ndash;',
+            '&yacute;','&thorn;','&yuml;', '&emsp;', '&ndash;', '&rsquo;',
         );
         $text = str_replace($html, $xml, $text); 
         $text = str_ireplace($html, $xml, $text); 
