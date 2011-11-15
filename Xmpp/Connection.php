@@ -50,6 +50,13 @@ class Xmpp_Connection
     const PRESENCE_CHAT = 'chat';
     const PRESENCE_DND = 'dnd';
     const PRESENCE_XA = 'xa';
+    
+    /**
+     * Holds the buffer of incoming tags
+     * 
+     * @var array 
+     */
+    private $_buffer = array();
 
     /**
      * Host name of the server to connect to
@@ -972,8 +979,8 @@ class Xmpp_Connection
 
         $fromServer = false;
 
-        // Wait for the stream to update
-        if ($this->_stream->select() > 0) {
+        // If there is nothing left in the buffer, wait for the stream to update
+        if (count($this->_buffer) == 0 && $this->_stream->select() > 0) {
 
             $response = '';
 
@@ -987,7 +994,6 @@ class Xmpp_Connection
                     $done = true;
                 }
             }
-            echo $response . "\n";
 
             // If the response isn't empty, load it into a SimpleXML element
             if (trim($response) != '') {
@@ -1038,8 +1044,6 @@ class Xmpp_Connection
 
                 $xml = simplexml_load_string($response);
 
-                $name = $xml->getName();
-
                 // If we want the stream element itself, just return that,
                 // otherwise check the contents of the stream.
                 if ($tag == 'stream:stream') {
@@ -1056,14 +1060,30 @@ class Xmpp_Connection
                     $namespaces['blank'] = '';
                     foreach ($namespaces as $namespace) {
                         foreach ($xml->children($namespace) as $child) {
-                            if ($tag == '*' 
-                                || ($child instanceof SimpleXMLElement && $child->getName() == $tag)
-                            ) {
-                                $fromServer = $child;
+                            if ($child instanceof SimpleXMLElement) {
+                                $this->_buffer[] = $child;
                             }
                         }
                     }
                 }
+            }
+        }
+        
+        // Now go over what is in the buffer and return anything necessary
+        foreach ($this->_buffer as $key => $stanza) {
+            
+            // Only bother looking for more tags if one has not yet been found.
+            if ($fromServer == false) {
+                
+                // Remove this element from the buffer because we do not want it to 
+                // be processed again.
+                unset($this->_buffer[$key]);
+
+                // If this the tag we want, save it for returning.
+                if ($tag == '*' || $stanza->getName() == $tag) {
+                    $fromServer = $stanza;
+                }
+                
             }
         }
 
