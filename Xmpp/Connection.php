@@ -50,6 +50,13 @@ class Xmpp_Connection
     const PRESENCE_CHAT = 'chat';
     const PRESENCE_DND = 'dnd';
     const PRESENCE_XA = 'xa';
+    
+    /**
+     * Holds the buffer of incoming tags
+     * 
+     * @var array 
+     */
+    private $_buffer = array();
 
     /**
      * Host name of the server to connect to
@@ -814,9 +821,28 @@ class Xmpp_Connection
             '&#227;','&#228;','&#229;','&#230;','&#231;','&#232;','&#233;','&#234;',
             '&#235;','&#236;','&#237;','&#238;','&#239;','&#240;','&#241;','&#242;',
             '&#243;','&#244;','&#245;','&#246;','&#247;','&#248;','&#249;','&#250;',
-            '&#251;','&#252;','&#253;','&#254;','&#255;', '&#8195;', '&#8211;',
-			'&#8217;', '&#8220;'
+            '&#251;','&#252;','&#253;','&#254;','&#255;','&#338;','&#339;','&#352;',
+            '&#353;','&#376;','&#402;','&#710;','&#732;','&#913;','&#914;','&#915;',
+            '&#916;','&#917;','&#918;','&#919;','&#920;','&#921;','&#922;','&#923;',
+            '&#924;','&#925;','&#926;','&#927;','&#928;','&#929;','&#931;','&#932;',
+            '&#933;','&#934;','&#935;','&#936;','&#937;','&#945;','&#946;','&#947;',
+            '&#948;','&#949;','&#950;','&#951;','&#952;','&#953;','&#954;','&#955;',
+            '&#956;','&#957;','&#958;','&#959;','&#960;','&#961;','&#962;','&#963;',
+            '&#964;','&#965;','&#966;','&#967;','&#968;','&#969;','&#977;','&#978;',
+            '&#982;','&#8194;','&#8195;','&#8201;','&#8204;','&#8205;','&#8206;',
+            '&#8207;','&#8211;','&#8212;','&#8216;','&#8217;','&#8218;','&#8220;',
+            '&#8221;','&#8222;','&#8224;','&#8225;','&#8226;','&#8230;','&#8240;',
+            '&#8242;','&#8243;','&#8249;','&#8250;','&#8254;','&#8364;','&#8482;',
+            '&#8592;','&#8593;','&#8594;','&#8595;','&#8596;','&#8629;','&#8704;',
+            '&#8706;','&#8707;','&#8709;','&#8711;','&#8712;','&#8713;','&#8715;',
+            '&#8719;','&#8721;','&#8722;','&#8727;','&#8730;','&#8733;','&#8734;',
+            '&#8736;','&#8743;','&#8744;','&#8745;','&#8746;','&#8747;','&#8756;',
+            '&#8764;','&#8773;','&#8776;','&#8800;','&#8801;','&#8804;','&#8805;',
+            '&#8834;','&#8835;','&#8836;','&#8838;','&#8839;','&#8853;','&#8855;',
+            '&#8869;','&#8901;','&#8968;','&#8969;','&#8970;','&#8971;','&#9674;',
+            '&#9824;','&#9827;','&#9829;','&#9830;',
         );
+
         $html = array(
             '&quot;','&amp;','&amp;','&lt;','&gt;','&nbsp;','&iexcl;','&cent;',
             '&pound;','&curren;','&yen;','&brvbar;','&sect;','&uml;','&copy;',
@@ -832,7 +858,26 @@ class Xmpp_Connection
             '&eacute;','&ecirc;','&euml;','&igrave;','&iacute;','&icirc;','&iuml;',
             '&eth;','&ntilde;','&ograve;','&oacute;','&ocirc;','&otilde;','&ouml;',
             '&divide;','&oslash;','&ugrave;','&uacute;','&ucirc;','&uuml;',
-            '&yacute;','&thorn;','&yuml;', '&emsp;', '&ndash;', '&rsquo;', '&ldquo;',
+            '&yacute;','&thorn;','&yuml;', '&OElig;','&oelig;','&Scaron;','&scaron;',
+            '&Yuml;','&fnof;','&circ;','&tilde;','&Alpha;','&Beta;','&Gamma;',
+            '&Delta;','&Epsilon;','&Zeta;','&Eta;','&Theta;','&Iota;','&Kappa;',
+            '&Lambda;','&Mu;','&Nu;','&Xi;','&Omicron;','&Pi;','&Rho;','&Sigma;',
+            '&Tau;','&Upsilon;','&Phi;','&Chi;','&Psi;','&Omega;','&alpha;','&beta;',
+            '&gamma;','&delta;','&epsilon;','&zeta;','&eta;','&theta;','&iota;',
+            '&kappa;','&lambda;','&mu;','&nu;','&xi;','&omicron;','&pi;','&rho;',
+            '&sigmaf;','&sigma;','&tau;','&upsilon;','&phi;','&chi;','&psi;',
+            '&omega;','&thetasym;','&upsih;','&piv;','&ensp;','&emsp;','&thinsp;',
+            '&zwnj;','&zwj;','&lrm;','&rlm;','&ndash;','&mdash;','&lsquo;','&rsquo;',
+            '&sbquo;','&ldquo;','&rdquo;','&bdquo;','&dagger;','&Dagger;','&bull;',
+            '&hellip;','&permil;','&prime;','&Prime;','&lsaquo;','&rsaquo;',
+            '&oline;','&euro;','&trade;','&larr;','&uarr;','&rarr;','&darr;',
+            '&harr;','&crarr;','&forall;','&part;','&exist;','&empty;','&nabla;',
+            '&isin;','&notin;','&ni;','&prod;','&sum;','&minus;','&lowast;',
+            '&radic;','&prop;','&infin;','&ang;','&and;','&or;','&cap;','&cup;',
+            '&int;','&there4;','&sim;','&cong;','&asymp;','&ne;','&equiv;','&le;',
+            '&ge;','&sub;','&sup;','&nsub;','&sube;','&supe;','&oplus;','&otimes;',
+            '&perp;','&sdot;','&lceil;','&rceil;','&lfloor;','&rfloor;','&loz;',
+            '&spades;','&clubs;','&hearts;','&diams;',
         );
         $text = str_replace($html, $xml, $text); 
         $text = str_ireplace($html, $xml, $text); 
@@ -934,8 +979,8 @@ class Xmpp_Connection
 
         $fromServer = false;
 
-        // Wait for the stream to update
-        if ($this->_stream->select() > 0) {
+        // If there is nothing left in the buffer, wait for the stream to update
+        if (count($this->_buffer) == 0 && $this->_stream->select() > 0) {
 
             $response = '';
 
@@ -948,7 +993,6 @@ class Xmpp_Connection
                     $done = true;
                 }
             }
-            echo $response . "\n";
 
             // If the response isn't empty, load it into a SimpleXML element
             if (trim($response) != '') {
@@ -999,8 +1043,6 @@ class Xmpp_Connection
 
                 $xml = simplexml_load_string($response);
 
-                $name = $xml->getName();
-
                 // If we want the stream element itself, just return that,
                 // otherwise check the contents of the stream.
                 if ($tag == 'stream:stream') {
@@ -1017,14 +1059,30 @@ class Xmpp_Connection
                     $namespaces['blank'] = '';
                     foreach ($namespaces as $namespace) {
                         foreach ($xml->children($namespace) as $child) {
-                            if ($tag == '*' 
-                                || ($child instanceof SimpleXMLElement && $child->getName() == $tag)
-                            ) {
-                                $fromServer = $child;
+                            if ($child instanceof SimpleXMLElement) {
+                                $this->_buffer[] = $child;
                             }
                         }
                     }
                 }
+            }
+        }
+        
+        // Now go over what is in the buffer and return anything necessary
+        foreach ($this->_buffer as $key => $stanza) {
+            
+            // Only bother looking for more tags if one has not yet been found.
+            if ($fromServer == false) {
+                
+                // Remove this element from the buffer because we do not want it to 
+                // be processed again.
+                unset($this->_buffer[$key]);
+
+                // If this the tag we want, save it for returning.
+                if ($tag == '*' || $stanza->getName() == $tag) {
+                    $fromServer = $stanza;
+                }
+                
             }
         }
 
