@@ -349,7 +349,7 @@ class Xmpp_Connection
             // If there was a starttls tag in there, and this connection has SSL
             // enabled, then we should tell the server that we will start up tls as 
             // well.
-            if (strpos($response, '<starttls xmlns="urn:ietf:params:xml:ns:xmpp-tls"></starttls>') !== false
+            if (preg_match("/<starttls xmlns=('|\")urn:ietf:params:xml:ns:xmpp-tls('|\")>(<required\/>)?<\/starttls>/", $response->asXML()) != 0
                 && $this->_ssl === true
             ) {
                 $this->_logger->debug('Informing server we will start TLS');
@@ -370,7 +370,7 @@ class Xmpp_Connection
 
                 // Server should now respond with start of stream and list of
                 // features
-                $response = $this->waitForServer('stream');
+                $response = $this->waitForServer('stream:stream');
                 $this->_logger->debug('Received: ' . $response);
 
                 // Set mechanisms based on that tag
@@ -942,10 +942,9 @@ class Xmpp_Connection
             $done = false;
             
             // Read data from the connection.
-            while (!$done) {
-                $currentLength = strlen($response);                
+            while (!$done) {              
                 $response .= $this->_stream->read(4096);
-                if (strlen($response) == $currentLength) {
+                if ($this->_stream->select() == 0) {
                     $done = true;
                 }
             }
