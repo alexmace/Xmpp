@@ -672,9 +672,9 @@ class Xmpp_Connection
      * 
      * @return boolean 
      */
-    public function ping()
+    public function ping($to)
     {
-        $message = "<iq to='" . $this->_realm . "' from='" . $this->_userName . '@'
+        $message = "<iq to='" . $to . "' from='" . $this->_userName . '@'
                 . $this->_realm . '/' . $this->_resource . "' type='get' "
                 . "id='" . uniqid() . "'>"
                 . "<ping xmlns='urn:xmpp:ping'/>"
@@ -993,6 +993,8 @@ class Xmpp_Connection
                     $done = true;
                 }
             }
+			
+			$this->_logger->debug('Response (Xmpp_Connection): ' . $response);
 
             // If the response isn't empty, load it into a SimpleXML element
             if (trim($response) != '') {
