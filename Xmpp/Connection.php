@@ -1079,7 +1079,7 @@ class Xmpp_Connection
         foreach ($this->_buffer as $key => $stanza) {
             
             // Only bother looking for more tags if one has not yet been found.
-            if ($fromServer == false) {
+            if ($fromServer === false) {
                 
                 // Remove this element from the buffer because we do not want it to 
                 // be processed again.
