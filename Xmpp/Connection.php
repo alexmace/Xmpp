@@ -977,6 +977,8 @@ class Xmpp_Connection
     protected function waitForServer($tag)
     {
 
+		$this->_logger->debug("Tag we're waiting for: " . $tag);
+		
         $fromServer = false;
 
         // If there is nothing left in the buffer, wait for the stream to update
