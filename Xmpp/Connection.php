@@ -1070,7 +1070,8 @@ class Xmpp_Connection
             }
         }
 		
-		$this->_logger->debug('Contents of $this->_buffer before foreach: ' . var_dump($this->_buffer, true));
+		$this->_logger->debug('Contents of $fromServer: ' . $fromServer);
+		$this->_logger->debug('Contents of $this->_buffer before foreach: ' . var_export($this->_buffer));
         
         // Now go over what is in the buffer and return anything necessary
         foreach ($this->_buffer as $key => $stanza) {
@@ -1090,7 +1091,7 @@ class Xmpp_Connection
             }
         }
 		
-		$this->_logger->debug('Contents of $this->_buffer after foreach: ' . var_dump($this->_buffer, true));
+		$this->_logger->debug('Contents of $this->_buffer after foreach: ' . var_export($this->_buffer));
 
         return $fromServer;
     }
