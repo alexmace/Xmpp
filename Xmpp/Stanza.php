@@ -35,11 +35,12 @@ abstract class Xmpp_Stanza
 
     private $_from = null;
     private $_to = null;
+	private $_id = null;
     protected $type = null;
 
     /**
      * Class constructor, sets up common class variables.
-     * 
+     *
      * @param SimpleXMLElement $stanza The XML itself for the stanza.
      */
     public function __construct(SimpleXMLElement $stanza)
@@ -52,12 +53,16 @@ abstract class Xmpp_Stanza
         if (isset($stanza['to'])) {
             $this->_to = (string) $stanza['to'];
         }
+
+		if (isset($stanza['id'])) {
+			$this->_id = (string) $stanza['id'];
+		}
     }
 
     /**
      * Returns the JID of the sender of the stanza.
-     * 
-     * @return string 
+     *
+     * @return string
      */
     public function getFrom()
     {
@@ -66,8 +71,8 @@ abstract class Xmpp_Stanza
 
     /**
      * Returns who the JID of who the stanza was sent to.
-     * 
-     * @return string 
+     *
+     * @return string
      */
     public function getTo()
     {
@@ -76,12 +81,22 @@ abstract class Xmpp_Stanza
 
     /**
      * Returns the value of the "type" attribute on the stanza.
-     * 
-     * @return string 
+     *
+     * @return string
      */
     public function getType()
     {
         return $this->type;
     }
+
+	/**
+	 * Returns the "id" of the stanza.
+	 *
+	 * @return string
+	 */
+	public function getId()
+	{
+		return $this->_id;
+	}
 
 }
