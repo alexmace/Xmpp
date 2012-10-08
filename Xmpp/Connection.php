@@ -50,11 +50,11 @@ class Xmpp_Connection
     const PRESENCE_CHAT = 'chat';
     const PRESENCE_DND = 'dnd';
     const PRESENCE_XA = 'xa';
-    
+
     /**
      * Holds the buffer of incoming tags
-     * 
-     * @var array 
+     *
+     * @var array
      */
     private $_buffer = array();
 
@@ -120,7 +120,7 @@ class Xmpp_Connection
 
     /**
      * Whether or not this connection to switch SSL when it is available.
-     * 
+     *
      * @var boolean
      */
     private $_ssl = true;
@@ -152,7 +152,7 @@ class Xmpp_Connection
      * @param string $resource Identifier of the connection
      */
     public function __construct(
-        $userName, $password, $host, $ssl = true, $logLevel = Zend_Log::EMERG, 
+        $userName, $password, $host, $ssl = true, $logLevel = Zend_Log::EMERG,
         $port = 5222, $resource = 'NewXmpp'
     ) {
 
@@ -163,16 +163,16 @@ class Xmpp_Connection
         $this->_port = $port;
         $this->_resource = $resource;
         $this->_ssl = $ssl;
-        list($this->_userName, $this->_realm) 
+        list($this->_userName, $this->_realm)
             = array_pad(explode('@', $userName), 2, null);
     }
 
     /**
      * Authenticate against server with the stored username and password.
-     * 
+     *
      * Note only DIGEST-MD5 authentication is supported.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function authenticate()
     {
@@ -207,14 +207,14 @@ class Xmpp_Connection
 
             $cnonce = uniqid();
             $a1 = pack(
-                'H32', 
+                'H32',
                 md5(
-                    $this->_userName . ':' . $challenge['realm'] . ':' . 
+                    $this->_userName . ':' . $challenge['realm'] . ':' .
                     $this->_password
                 )
-            ) 
+            )
                 . ':' . $challenge['nonce'] . ':' . $cnonce;
-            
+
             $a2 = 'AUTHENTICATE:xmpp/' . $challenge['realm'];
             $ha1 = md5($a1);
             $ha2 = md5($a2);
@@ -282,8 +282,8 @@ class Xmpp_Connection
 
     /**
      * Bind this connection to a particular resource (the last part of the JID)
-     * 
-     * @return true 
+     *
+     * @return true
      */
     public function bind()
     {
@@ -333,18 +333,18 @@ class Xmpp_Connection
             $response = $this->waitForServer('stream:stream');
             $this->_logger->debug('Received: ' . $response);
 
-            // If the response from the server does contain a features tag, don't 
+            // If the response from the server does contain a features tag, don't
             // bother querying server to get it.
             // TODO - Xpath would probably be more sensible for this, but for
             // now this'll work.
             if (strpos($response->asXml(), '<stream:features') === false) {
 
                 // Server should now send back a features tag telling us what
-                // features it supports. If it tells us to start tls then we will 
-                // need to change to a secure connection. It will also tell us what 
+                // features it supports. If it tells us to start tls then we will
+                // need to change to a secure connection. It will also tell us what
                 // authentication methods it supports.
                 //
-                // Note we check for a "features" tag rather than stream:features 
+                // Note we check for a "features" tag rather than stream:features
                 // because it is namespaced.
                 $response = $this->waitForServer('features');
                 $this->_logger->debug('Received: ' . $response);
@@ -354,7 +354,7 @@ class Xmpp_Connection
             $this->setMechanisms($response);
 
             // If there was a starttls tag in there, and this connection has SSL
-            // enabled, then we should tell the server that we will start up tls as 
+            // enabled, then we should tell the server that we will start up tls as
             // well.
             if (preg_match("/<starttls xmlns=('|\")urn:ietf:params:xml:ns:xmpp-tls('|\")>(<required\/>)?<\/starttls>/", $response->asXML()) != 0
                 && $this->_ssl === true
@@ -367,7 +367,7 @@ class Xmpp_Connection
                 $response = $this->waitForServer('proceed');
                 $this->_logger->debug('Received: ' . $response->asXML());
 
-                // Once we have the proceed signal from the server, we should turn 
+                // Once we have the proceed signal from the server, we should turn
                 // on TLS on the stream and send the opening stream tag again.
                 $this->_stream->setTLS(true);
                 $this->_logger->debug('Enabled TLS');
@@ -394,16 +394,16 @@ class Xmpp_Connection
 
     /**
      * Disconnect from the server.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function disconnect()
     {
         $message = '</stream:stream>';
 
         // If the stream isn't set, get one. Seems unlikely that we'd want to be
-        // disconnecting when no connection is open via a stream, but it saves us 
-        // having to go through the rigormoral of actually setting up a proper, full 
+        // disconnecting when no connection is open via a stream, but it saves us
+        // having to go through the rigormoral of actually setting up a proper, full
         // mock connection.
         if (!isset($this->_stream)) {
             $this->_stream = $this->getStream($this->getServer());
@@ -418,8 +418,8 @@ class Xmpp_Connection
 
     /**
      * Establish the start of a session.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function establishSession()
     {
@@ -440,8 +440,8 @@ class Xmpp_Connection
 
     /**
      * Get the last response as an instance of Xmpp_Iq.
-     * 
-     * @return Xmpp_Iq 
+     *
+     * @return Xmpp_Iq
      */
     public function getIq()
     {
@@ -454,8 +454,8 @@ class Xmpp_Connection
 
     /**
      * Get the last response an an instance of Xmpp_Message.
-     * 
-     * @return Xmpp_Message 
+     *
+     * @return Xmpp_Message
      */
     public function getMessage()
     {
@@ -468,13 +468,13 @@ class Xmpp_Connection
 
     /**
      * Set the presence of the user.
-     * 
+     *
      * @param string $status   Custom status string
      * @param string $show     Current state of user, e.g. away, do not disturb
      * @param int    $priority Presence priority
-     * 
+     *
      * @todo Allow multiple statuses to be entered
-     * 
+     *
      * @return boolean
      */
     public function presence($status = null, $show = null, $priority = null)
@@ -508,9 +508,9 @@ class Xmpp_Connection
 
     /**
      * Wait for the server to respond.
-     * 
+     *
      * @todo Get this to return after a timeout period if nothing has come back
-     * 
+     *
      * @return string
      */
     public function wait()
@@ -534,8 +534,8 @@ class Xmpp_Connection
 
     /**
      * Check if server supports the Multi-User Chat extension.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function isMucSupported()
     {
@@ -543,7 +543,7 @@ class Xmpp_Connection
         // Set up return value. Assume MUC isn't supported
         $mucSupported = false;
 
-        // If items is empty then we haven't yet asked the server what items are 
+        // If items is empty then we haven't yet asked the server what items are
         // associated with it. Query the server for what items are available.
         if (is_null($this->items)) {
             $this->discoverItems();
@@ -575,12 +575,12 @@ class Xmpp_Connection
             // If it is, then MUC is supported
             if (isset($response->query)) {
                 foreach ($response->query->children() as $feature) {
-                    
+
                     if ($feature->getName() == 'feature'
                         && isset($feature->attributes()->var)
                         && $feature->attributes()->var == 'http://jabber.org/protocol/muc'
                     ) {
-                        
+
                         $mucSupported = true;
                     }
                 }
@@ -592,20 +592,20 @@ class Xmpp_Connection
 
     /**
      * Join a MUC Room.
-     * 
+     *
      * @param type $roomJid              Room to join.
      * @param type $nick                 Nickname to join as.
      * @param type $overRideReservedNick Override the server assigned nickname.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function join($roomJid, $nick, $overRideReservedNick = false)
     {
 
-        // If we shouldn't over ride the reserved nick, check to see if one is 
+        // If we shouldn't over ride the reserved nick, check to see if one is
         // set.
         if (!$overRideReservedNick) {
-            // Make a request to see if we have a reserved nick name in the room 
+            // Make a request to see if we have a reserved nick name in the room
             // that we want to join.
             $reservedNick = $this->requestReservedNickname($roomJid);
 
@@ -621,7 +621,7 @@ class Xmpp_Connection
         $this->_stream->send($message);
         $this->_logger->debug('Attempting to join the room ' . $roomJid);
 
-        // Should now get a list of presences back containing the details of all the 
+        // Should now get a list of presences back containing the details of all the
         // other occupants of the room.
         $response = false;
         while (!$response) {
@@ -642,7 +642,7 @@ class Xmpp_Connection
      *
      * @param string $to   Intended recipient of the message.
      * @param string $text Contents of the message.
-     * 
+     *
      * @return boolean
      */
     public function message($to, $text)
@@ -660,7 +660,7 @@ class Xmpp_Connection
 
         $message = "<message to='" . $to . "' from='" . $this->_userName . '@'
                 . $this->_realm . '/' . $this->_resource . "' type='" . $type
-                . "' xml:lang='en'><body>" . $this->encode($text) 
+                . "' xml:lang='en'><body>" . $this->encode($text)
                 . "</body></message>";
         $this->_stream->send($message);
 
@@ -669,8 +669,8 @@ class Xmpp_Connection
 
     /**
      * Send a ping to the server.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     public function ping($to)
     {
@@ -683,6 +683,24 @@ class Xmpp_Connection
 
         return true;
     }
+
+	/**
+	 * Send a response to a ping.
+	 *
+	 * @param string $to Who the response is being sent back to.
+	 * @param string $id The ID from the original ping.
+	 *
+	 * @return boolean
+	 */
+	public function pong($to, $id)
+	{
+		$message = "<iq from='" . $this->_userName . '@' . $this->_realm . '/'
+				 . $this->_resource . "' to='" . $to . "' id='" . $id . "' "
+				 . "type='result'/>";
+		$this->_stream->send($message);
+
+		return true;
+	}
 
     /**
      * Class destructor. Will try and close the connection if it is open
@@ -697,8 +715,8 @@ class Xmpp_Connection
 
     /**
      * Get the server this class should connect to.
-     * 
-     * @return string 
+     *
+     * @return string
      */
     protected function getServer()
     {
@@ -706,14 +724,14 @@ class Xmpp_Connection
     }
 
     /**
-     * Gets a Stream object that encapsulates the actual connection to the 
+     * Gets a Stream object that encapsulates the actual connection to the
      * server
      *
      * @param string   $remoteSocket Address to connect to
      * @param int      $timeOut      Length of time to wait for connection
      * @param int      $flags        Flags to be set on the connection
      * @param resource $context      Context of the connection
-     * 
+     *
      * @return Stream
      */
     protected function getStream(
@@ -726,7 +744,7 @@ class Xmpp_Connection
      * Gets the logging class
      *
      * @param int $logLevel Logging level to be used
-     * 
+     *
      * @return Zend_Log
      */
     protected function getLogger($logLevel)
@@ -737,10 +755,10 @@ class Xmpp_Connection
 
     /**
      * Checks if a given authentication mechanism is available.
-     * 
+     *
      * @param string $mechanism Mechanism to check availability for.
-     * 
-     * @return boolean 
+     *
+     * @return boolean
      */
     protected function mechanismAvailable($mechanism)
     {
@@ -749,7 +767,7 @@ class Xmpp_Connection
 
     /**
      * Discovers what items (basically features) are available on the server.
-     * 
+     *
      * @return void
      */
     protected function discoverItems()
@@ -765,10 +783,10 @@ class Xmpp_Connection
 
         // Wait for iq response
         $response = false;
-        while (!$response || $response->getName() != 'iq' 
+        while (!$response || $response->getName() != 'iq'
             || strpos($response->asXml(), '<item') === false
         ) {
-            
+
             $response = $this->waitForServer('iq');
         }
         $this->_logger->debug('Received: ' . $response->asXML());
@@ -795,18 +813,18 @@ class Xmpp_Connection
             }
         }
     }
-    
+
     /**
      * Encodes text for XML.
-     * 
+     *
      * Most inspired by this example:
      * http://www.sourcerally.net/Scripts/39-Convert-HTML-Entities-to-XML-Entities
-     * 
+     *
      * @param string $text
-     * @return string 
+     * @return string
      */
-    private function encode($text)  
-    { 
+    private function encode($text)
+    {
         $text = htmlentities($text, ENT_COMPAT, 'UTF-8');
         $xml = array(
             '&#34;','&#38;','&#38;','&#60;','&#62;','&#160;','&#161;','&#162;',
@@ -879,17 +897,17 @@ class Xmpp_Connection
             '&perp;','&sdot;','&lceil;','&rceil;','&lfloor;','&rfloor;','&loz;',
             '&spades;','&clubs;','&hearts;','&diams;',
         );
-        $text = str_replace($html, $xml, $text); 
-        $text = str_ireplace($html, $xml, $text); 
-        return $text; 
-    } 
+        $text = str_replace($html, $xml, $text);
+        $text = str_ireplace($html, $xml, $text);
+        return $text;
+    }
 
     /**
      * Checks if the server has a reserved nickname for this user in the given room.
-     * 
+     *
      * @param string $roomJid Given room the check the reserved nicknames for.
-     * 
-     * @return string 
+     *
+     * @return string
      */
     protected function requestReservedNickname($roomJid)
     {
@@ -924,10 +942,10 @@ class Xmpp_Connection
     /**
      * Take the given features tag and figure out what authentication mechanisms are
      * supported from it's contents.
-     * 
-     * @param SimpleXMLElement $features <stream:features> saying what server 
+     *
+     * @param SimpleXMLElement $features <stream:features> saying what server
      *                                   supports
-     * 
+     *
      * @return void
      */
     protected function setMechanisms(SimpleXMLElement $features)
@@ -936,8 +954,8 @@ class Xmpp_Connection
         // Set up an array to hold any matches
         $matches = array();
 
-        // A response containing a stream:features tag should have been passed in. 
-        // That should contain a mechanisms tag. Find the mechanisms tag and load it 
+        // A response containing a stream:features tag should have been passed in.
+        // That should contain a mechanisms tag. Find the mechanisms tag and load it
         // into a SimpleXMLElement object.
         if (preg_match('/<stream:features.*(<mechanisms.*<\/mechanisms>).*<\/stream:features>/', $features->asXml(), $matches) != 0) {
 
@@ -955,7 +973,7 @@ class Xmpp_Connection
 
     /**
      * Starts an XMPP connection.
-     * 
+     *
      * @return void
      */
     protected function startStream()
@@ -971,14 +989,14 @@ class Xmpp_Connection
      * Waits for the server to send the specified tag back.
      *
      * @param string $tag Tag to wait for from the server.
-     * 
+     *
      * @return boolean|SimpleXMLElement
      */
     protected function waitForServer($tag)
     {
 
 		$this->_logger->debug("Tag we're waiting for: " . $tag);
-		
+
         $fromServer = false;
 
         // If there is nothing left in the buffer, wait for the stream to update
@@ -987,15 +1005,15 @@ class Xmpp_Connection
             $response = '';
 
             $done = false;
-            
+
             // Read data from the connection.
-            while (!$done) {              
+            while (!$done) {
                 $response .= $this->_stream->read(4096);
                 if ($this->_stream->select() == 0) {
                     $done = true;
                 }
             }
-			
+
 			$this->_logger->debug('Response (Xmpp_Connection): ' . $response);
 
             // If the response isn't empty, load it into a SimpleXML element
@@ -1051,7 +1069,7 @@ class Xmpp_Connection
                 // otherwise check the contents of the stream.
                 if ($tag == 'stream:stream') {
                     $fromServer = $xml;
-                } else if ($xml instanceof SimpleXMLElement 
+                } else if ($xml instanceof SimpleXMLElement
                     && $xml->getName() == 'stream'
                 ) {
 
@@ -1071,17 +1089,17 @@ class Xmpp_Connection
                 }
             }
         }
-		
+
 		$this->_logger->debug('Contents of $fromServer: ' . var_export($fromServer, true));
 		$this->_logger->debug('Contents of $this->_buffer before foreach: ' . var_export($this->_buffer, true));
-        
+
         // Now go over what is in the buffer and return anything necessary
         foreach ($this->_buffer as $key => $stanza) {
-            
+
             // Only bother looking for more tags if one has not yet been found.
             if ($fromServer === false) {
-                
-                // Remove this element from the buffer because we do not want it to 
+
+                // Remove this element from the buffer because we do not want it to
                 // be processed again.
                 unset($this->_buffer[$key]);
 
@@ -1089,10 +1107,10 @@ class Xmpp_Connection
                 if ($tag == '*' || $stanza->getName() == $tag) {
                     $fromServer = $stanza;
                 }
-                
+
             }
         }
-		
+
 		$this->_logger->debug('Contents of $this->_buffer after foreach: ' . var_export($this->_buffer, true));
 
         return $fromServer;
