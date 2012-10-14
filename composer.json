@@ -1,5 +1,5 @@
 {
-	"name": "alexmace/Xmpp",
+	"name": "alexmace/xmpp",
 	"require": {
 		"php": ">=5"
 	}
