@@ -1,6 +1,26 @@
 {
 	"name": "alexmace/xmpp",
+	"description": "A client library for talking to XMPP servers.",
+	"homepage": "http://m.me.uk/xmpp/",
+	"license": "PHP-3.0",
+	"keywords": [
+		"xmpp", "jabber", "im"
+	],
 	"require": {
-		"php": ">=5.2"
+		"php": ">=5.2",
+		"zendframework/zendframework1": ">=1.12.0"
+	},
+	"authors": [
+		{
+			"name": "Alex Mace",
+			"email": "a@m.me.uk",
+			"homepage": "http://m.me.uk",
+			"role": "Developer"
+		}
+	],
+	"support": {
+		"issues": "https://github.com/alexmace/Xmpp/issues",
+		"wiki": "https://github.com/alexmace/Xmpp/wiki",
+		"source": "https://github.com/alexmace/Xmpp"
 	}
 }
