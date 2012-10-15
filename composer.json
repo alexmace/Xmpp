@@ -1,6 +1,6 @@
 {
 	"name": "alexmace/xmpp",
 	"require": {
-		"php": ">=5"
+		"php": ">=5.2"
 	}
 }
