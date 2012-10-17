@@ -21,10 +21,6 @@
  * @license   http://m.me.uk/xmpp/license/ New BSD License
  * @link      http://pear.m.me.uk/package/Xmpp
  */
-require_once 'Xmpp/Exception.php';
-require_once 'Stream.php';
-require_once 'Zend/Log.php';
-require_once 'Zend/Log/Writer/Stream.php';
 
 /**
  * Xmpp is an implementation of the Xmpp protocol. Note that creating the class
