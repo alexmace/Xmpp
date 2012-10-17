@@ -11,7 +11,7 @@
 		"zendframework/zendframework1": ">=1.12.0"
 	},
     "autoload": {
-        "psr-0": {"": "./"}
+        "classmap": ["./"]
     },
 	"authors": [
 		{
