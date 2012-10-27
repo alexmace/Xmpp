@@ -201,6 +201,12 @@ class Xmpp_Connection
                 $challenge[$key] = trim($value, '"');
             }
 
+			// Ejabberd Doesn't appear to send the realm in the challenge, so
+			// we need to default to what we think the realm is.
+			if (!isset($challenge['realm'])) {
+				$challenge['realm'] = $this->_realm;
+			}
+
             $cnonce = uniqid();
             $a1 = pack(
                 'H32',
