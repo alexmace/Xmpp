@@ -27,13 +27,12 @@
  *
  * PHP Version 5
  *
- * 
+ *
  * @package   Stream
  * @author    Alex Mace <alex@hollytree.co.uk>
  * @copyright 2010 Alex Mace
  * @license   The PHP License http://www.php.net/license/
  */
-require_once 'Stream/Exception.php';
 
 /**
  * The Stream class wraps up the stream functions, so you can pass around the
@@ -57,7 +56,7 @@ class Stream
 
     /**
      * Creates an instance of the Stream class
-     * 
+     *
      * @param string   $remoteSocket The remote socket to connect to
      * @param int      $timeOut      Give up trying to connect after these
      *                               number of seconds
@@ -83,12 +82,12 @@ class Stream
             );
         } else if (is_null($context)) {
             $this->_conn = stream_socket_client(
-                $remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut, 
+                $remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut,
                 $flags
             );
         } else {
             $this->_conn = stream_socket_client(
-                $remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut, 
+                $remoteSocket, $this->_errorNumber, $this->_errorString, $timeOut,
                 $flags, $context
             );
         }
@@ -157,7 +156,7 @@ class Stream
 
     /**
      * Attempts to read some data from the stream
-     * 
+     *
      * @param int $length The amount of data to be returned
      *
      * @return string
@@ -217,10 +216,10 @@ class Stream
 
     /**
      * Toggle whether or not TLS is use on the connection.
-     * 
+     *
      * @param boolean $enable Whether or not to turn on TLS.
-     * 
-     * @return mixed 
+     *
+     * @return mixed
      */
     public function setTLS($enable)
     {
