@@ -177,7 +177,7 @@ class Stream
         $write = array();
         $except = array();
 
-        return stream_select($read, $write, $except, 5);
+        return stream_select($read, $write, $except, 0, 200000);
     }
 
     /**
