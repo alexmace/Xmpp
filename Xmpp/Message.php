@@ -43,6 +43,7 @@ class Xmpp_Message extends Xmpp_Stanza
     private $_lang = null;
     private $_subjects = array();
     private $_thread = null;
+	private $_delayed = false;
 
     /**
      * Class constructor.
@@ -101,7 +102,10 @@ class Xmpp_Message extends Xmpp_Stanza
 
             $this->_bodies[] = $thisBody;
         }
-
+		
+		if (isset($message->delay[0])) {
+			$this->_delayed = true;
+		}
 
         if (isset($message->thread[0])) {
             $this->_thread = (string) $message->thread[0];
@@ -159,5 +163,10 @@ class Xmpp_Message extends Xmpp_Stanza
     {
         return $this->_thread;
     }
+	
+	public function isDelayed()
+	{
+		return $this->_delayed;
+	}
 
 }
