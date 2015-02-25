@@ -277,7 +277,18 @@ class Xmpp_Connection
                 $response = $this->waitForServer('stream:features');
                 $this->_logger->debug('Received: ' . $response);
             }
-        }
+        } else if ($this->mechanismAvailable ('PLAIN')) {
+			
+			$auth = base64_encode($this->_userName . '@' . $this->_realm . "\u0000" . $this->_userName . "\u0000" . $this->_password);
+			
+			// Send message to the server that we want to authenticate
+            $message = "<auth xmlns='urn:ietf:params:xml:ns:xmpp-sasl' "
+                    . "mechanism='PLAIN'>$auth</message";
+            $this->_logger->debug('Requesting Authentication: ' . $message);
+            $this->_stream->send($message);
+
+		}
+		
 
         return true;
     }
